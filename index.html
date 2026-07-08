@@ -168,6 +168,26 @@
     font-size: 11px;
   }
 
+  .col-dx {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .var-badge {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.03em;
+  }
+
+  .var-badge.su { color: var(--good); border: 1px solid rgba(95, 174, 157, 0.5); }
+  .var-badge.giu { color: var(--warn); border: 1px solid rgba(201, 112, 92, 0.5); }
+  .var-badge.pari { color: var(--muted); border: 1px solid rgba(125, 130, 150, 0.4); }
+
   .grafico-box {
     display: none;
     background: var(--surface);
@@ -235,6 +255,33 @@ function serieCarta(storico, carta) {
   return storico
     .filter(function (r) { return r.link === carta.link; })
     .sort(function (a, b) { return a.data - b.data; });
+}
+
+// Variazione percentuale dell'ultimo prezzo rispetto a ~7 giorni prima.
+// Se lo storico è più corto, confronta con il punto più vecchio disponibile
+// e l'etichetta riporta i giorni effettivi (es. "3g").
+function variazioneCarta(serie) {
+  if (serie.length < 2) return null;
+  var ultimo = serie[serie.length - 1];
+  var soglia = ultimo.data - 7 * 86400000;
+
+  var rif = null;
+  for (var i = 0; i < serie.length; i++) {
+    if (serie[i].data <= soglia) rif = serie[i];
+    else break;
+  }
+
+  var etichetta = '7g';
+  if (!rif || rif === ultimo) {
+    rif = serie[0];
+    if (rif === ultimo) rif = serie[serie.length - 2];
+    var giorni = Math.max(1, Math.round((ultimo.data - rif.data) / 86400000));
+    etichetta = giorni + 'g';
+  }
+
+  if (!rif || !rif.prezzo) return null;
+  var pct = ((ultimo.prezzo - rif.prezzo) / rif.prezzo) * 100;
+  return { pct: pct, etichetta: etichetta };
 }
 
 function calcolaTotale(carte, storico) {
@@ -368,11 +415,33 @@ function render(dati) {
     }
 
     riga.appendChild(info);
-    riga.appendChild(chip);
+
+    var colDx = document.createElement('div');
+    colDx.className = 'col-dx';
+    colDx.appendChild(chip);
+
+    var serie = serieCarta(storico, c);
+
+    if (c.ultimoPrezzo != null) {
+      var v = variazioneCarta(serie);
+      if (v) {
+        var vb = document.createElement('div');
+        if (Math.abs(v.pct) < 0.05) {
+          vb.className = 'var-badge pari';
+          vb.textContent = '= 0% · ' + v.etichetta;
+        } else {
+          vb.className = 'var-badge ' + (v.pct > 0 ? 'su' : 'giu');
+          vb.textContent = (v.pct > 0 ? '▲ +' : '▼ −') +
+            Math.abs(v.pct).toFixed(1).replace('.', ',') + '% · ' + v.etichetta;
+        }
+        colDx.appendChild(vb);
+      }
+    }
+
+    riga.appendChild(colDx);
     lista.appendChild(riga);
 
     // grafico andamento al tocco (se c'è abbastanza storico)
-    var serie = serieCarta(storico, c);
     if (serie.length >= 2) {
       var box = document.createElement('div');
       box.className = 'grafico-box';
