@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prezzi Carte">
+<meta name="theme-color" content="#10152a">
+<title>Cardmarket Ledger</title>
+<style>
+  :root {
+    --bg: #10152a;
+    --surface: #1b2340;
+    --surface-2: #232b4d;
+    --gold: #caa15c;
+    --text: #eae6d8;
+    --muted: #7d8296;
+    --good: #5fae9d;
+    --warn: #c9705c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Iowan Old Style", Georgia, serif;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  header {
+    padding: max(28px, env(safe-area-inset-top)) 20px 18px;
+    border-bottom: 1px solid rgba(202, 161, 92, 0.25);
+  }
+
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+    letter-spacing: 0.02em;
+    font-weight: 600;
+  }
+
+  .sottotitolo {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  #lista {
+    padding: 10px 14px 0;
+  }
+
+  .riga {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 14px 14px;
+    margin-bottom: 10px;
+  }
+
+  .riga.stato-vuoto { border-left-color: var(--muted); }
+  .riga.stato-bloccato { border-left-color: var(--warn); }
+
+  .info { flex: 1; min-width: 0; }
+
+  .nome {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .badge {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+
+  .data {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .prezzo-chip {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--gold);
+    border-radius: 999px;
+    padding: 8px 14px;
+    white-space: nowrap;
+  }
+
+  .prezzo-chip.vuoto {
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .prezzo-chip.bloccato {
+    background: transparent;
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    font-size: 11px;
+  }
+
+  #vuoto, #errore {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Cardmarket Ledger</h1>
+    <div class="sottotitolo" id="aggiornato">caricamento...</div>
+  </header>
+
+  <div id="lista"></div>
+  <div id="vuoto">Nessuna carta ancora in lista.<br>Aggiungila dall'estensione sul PC.</div>
+  <div id="errore">Impossibile caricare data.json.<br>Fai almeno una sincronizzazione dall'estensione.</div>
+
+<script>
+fetch('data.json?t=' + Date.now())
+  .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+  .then(render)
+  .catch(function () {
+    document.getElementById('aggiornato').textContent = 'nessun dato';
+    document.getElementById('errore').style.display = 'block';
+  });
+
+function formattaData(ts) {
+  if (!ts) return '';
+  var d = new Date(ts);
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' +
+         d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function render(dati) {
+  var lista = document.getElementById('lista');
+  var carte = dati.carte || [];
+
+  document.getElementById('aggiornato').textContent =
+    'ultimo controllo: ' + (dati.aggiornatoIl ? formattaData(dati.aggiornatoIl) : 'mai');
+
+  if (carte.length === 0) {
+    document.getElementById('vuoto').style.display = 'block';
+    return;
+  }
+
+  carte.forEach(function (c) {
+    var riga = document.createElement('div');
+    riga.className = 'riga';
+
+    var info = document.createElement('div');
+    info.className = 'info';
+
+    var nome = document.createElement('div');
+    nome.className = 'nome';
+    nome.textContent = c.nome;
+    info.appendChild(nome);
+
+    if (c.filtroInfo) {
+      var badge = document.createElement('div');
+      badge.className = 'badge';
+      badge.textContent = c.filtroInfo.toUpperCase();
+      info.appendChild(badge);
+    }
+
+    var chip = document.createElement('div');
+
+    if (c.ultimoPrezzo != null) {
+      chip.className = 'prezzo-chip';
+      chip.textContent = c.ultimoPrezzo.toFixed(2) + ' €';
+      var dataEl = document.createElement('div');
+      dataEl.className = 'data';
+      dataEl.textContent = formattaData(c.ultimaData);
+      info.appendChild(dataEl);
+    } else if (c.ultimoBloccato) {
+      riga.className += ' stato-bloccato';
+      chip.className = 'prezzo-chip bloccato';
+      chip.textContent = 'anti-bot';
+    } else {
+      riga.className += ' stato-vuoto';
+      chip.className = 'prezzo-chip vuoto';
+      chip.textContent = c.ultimoErrore ? 'errore' : '—';
+    }
+
+    riga.appendChild(info);
+    riga.appendChild(chip);
+    lista.appendChild(riga);
+  });
+}
+</script>
+</body>
+</html>
