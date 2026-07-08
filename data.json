@@ -2,93 +2,188 @@
   "carte": [
     {
       "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/P-JP/847921/847921.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos-Japanese/MonkeyDLuffy-P-110",
       "nome": "luffy elbapf opd25",
-      "ultimaData": 1783497150477,
+      "ultimaData": 1783498384540,
+      "ultimaMedia3": 284.67,
+      "ultimeOfferte": 25,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 215
     },
     {
       "filtroInfo": "bgs 10",
+      "immagine": "https://product-images.s3.cardmarket.com/1621/OP13/857345/857345.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Carrying-on-his-Will/PortgasDAce-OP13-119-V4",
       "nome": "ace wanted",
-      "ultimaData": 1783497164703,
+      "ultimaData": 1783498395157,
+      "ultimaMedia3": null,
+      "ultimeOfferte": 0,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": null
     },
     {
       "filtroInfo": "sealed",
+      "immagine": "https://static.cardmarket.com/img/logos/cardmarket.png",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Booster-Boxes/Heroines-Edition-Booster-Box",
       "nome": "eb03 box",
-      "ultimaData": 1783497176483,
+      "ultimaData": 1783498405756,
+      "ultimaMedia3": 240,
+      "ultimeOfferte": 14,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 230
     },
     {
       "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/UP/857362/857362.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos/MonkeyDLuffy-ST01-012",
       "nome": "luffy st 3rd ann",
-      "ultimaData": 1783497189232,
+      "ultimaData": 1783498420171,
+      "ultimaMedia3": 30,
+      "ultimeOfferte": 23,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 30
     },
     {
       "filtroInfo": "psa 10",
+      "immagine": "https://product-images.s3.cardmarket.com/1621/UP-JP/853300/853300.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-ST21-014-V1",
       "nome": "luffy red mag",
-      "ultimaData": 1783497202543,
+      "ultimaData": 1783498431806,
+      "ultimaMedia3": 343.33,
+      "ultimeOfferte": 7,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 250
     },
     {
       "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/OP15/879906/879906.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Adventure-on-Kamis-Island/MonkeyDLuffy-EB04-061-V2",
       "nome": "luffy eb04",
-      "ultimaData": 1783497215897,
+      "ultimaData": 1783498443039,
+      "ultimaMedia3": 76.66,
+      "ultimeOfferte": 5,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 70
     },
     {
       "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/EB02/823516/823516.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Anime-25th-Collection/MonkeyDLuffy-EB02-061-V2",
       "nome": "luffy eb02 anime",
-      "ultimaData": 1783497230765,
+      "ultimaData": 1783498454355,
+      "ultimaMedia3": 99.38,
+      "ultimeOfferte": 7,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 98.9
     },
     {
       "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/OP05-JP/733464/733464.png",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Awakening-of-the-New-Era-Japanese/MonkeyDLuffy-ST01-012-V1",
       "nome": "luffy signed jp",
-      "ultimaData": 1783497243661,
+      "ultimaData": 1783498466741,
+      "ultimaMedia3": 67.63,
+      "ultimeOfferte": 9,
       "ultimoBloccato": false,
       "ultimoErrore": null,
-      "ultimoPrezzo": 67.9
+      "ultimoPrezzo": 65
     },
     {
       "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/P-JP/750649/750649.png",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos-Japanese/MonkeyDLuffy-P-041-V4",
       "nome": "luffy bcg jp",
-      "ultimaData": 1783497254424,
+      "ultimaData": 1783498477140,
+      "ultimaMedia3": 122.4,
+      "ultimeOfferte": 12,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 97.2
     },
     {
       "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/UP-JP/792764/792764.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-OP07-109",
       "nome": "luffy egghead opd24",
-      "ultimaData": 1783497266118,
+      "ultimaData": 1783498489275,
+      "ultimaMedia3": 108.33,
+      "ultimeOfferte": 10,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": 79.99
+    },
+    {
+      "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/P/823249/823249.jpg",
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos/Ryuma-P-072-V1",
+      "nome": "Ryuma stamp",
+      "quantita": 1,
+      "ultimaData": 1783498502846,
+      "ultimaMedia3": 51,
+      "ultimeOfferte": 5,
+      "ultimoBloccato": false,
+      "ultimoErrore": null,
+      "ultimoPrezzo": 48
+    },
+    {
+      "filtroInfo": "sealed",
+      "immagine": "https://product-images.s3.cardmarket.com/1621/UP-JP/877325/877325.jpg",
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-OP13-001",
+      "nome": "luffy ichiban",
+      "quantita": 1,
+      "ultimaData": 1783498515523,
+      "ultimaMedia3": 48.26,
+      "ultimeOfferte": 4,
+      "ultimoBloccato": false,
+      "ultimoErrore": null,
+      "ultimoPrezzo": 44.9
+    },
+    {
+      "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/OP13/857338/857338.jpg",
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Carrying-on-his-Will/MonkeyDLuffy-OP13-118-V2",
+      "nome": "luffy op13 map",
+      "quantita": 1,
+      "ultimaData": 1783498529852,
+      "ultimaMedia3": 78.33,
+      "ultimeOfferte": 15,
+      "ultimoBloccato": false,
+      "ultimoErrore": null,
+      "ultimoPrezzo": 75
+    },
+    {
+      "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/OP13/857343/857343.jpg",
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Carrying-on-his-Will/PortgasDAce-OP13-119-V2",
+      "nome": "ace op13 map",
+      "quantita": 1,
+      "ultimaData": 1783498542006,
+      "ultimaMedia3": 21,
+      "ultimeOfferte": 17,
+      "ultimoBloccato": false,
+      "ultimoErrore": null,
+      "ultimoPrezzo": 18.99
+    },
+    {
+      "filtroInfo": null,
+      "immagine": "https://product-images.s3.cardmarket.com/1621/OP16/890615/890615.jpg",
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/OP16/MonkeyDLuffy-OP16-015-V2",
+      "nome": "luffy op16",
+      "quantita": 1,
+      "ultimaData": 1783498553134,
+      "ultimaMedia3": 34.3,
+      "ultimeOfferte": 11,
+      "ultimoBloccato": false,
+      "ultimoErrore": null,
+      "ultimoPrezzo": 33.9
     }
   ],
   "storico": [
@@ -145,7 +240,119 @@
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-OP07-109",
       "nome": "luffy egghead opd24",
       "prezzo": 79.99
+    },
+    {
+      "data": 1783498384540,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos-Japanese/MonkeyDLuffy-P-110",
+      "media3": 284.67,
+      "nOfferte": 25,
+      "nome": "luffy elbapf opd25",
+      "prezzo": 215
+    },
+    {
+      "data": 1783498405756,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Booster-Boxes/Heroines-Edition-Booster-Box",
+      "media3": 240,
+      "nOfferte": 14,
+      "nome": "eb03 box",
+      "prezzo": 230
+    },
+    {
+      "data": 1783498420171,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos/MonkeyDLuffy-ST01-012",
+      "media3": 30,
+      "nOfferte": 23,
+      "nome": "luffy st 3rd ann",
+      "prezzo": 30
+    },
+    {
+      "data": 1783498431806,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-ST21-014-V1",
+      "media3": 343.33,
+      "nOfferte": 7,
+      "nome": "luffy red mag",
+      "prezzo": 250
+    },
+    {
+      "data": 1783498443039,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Adventure-on-Kamis-Island/MonkeyDLuffy-EB04-061-V2",
+      "media3": 76.66,
+      "nOfferte": 5,
+      "nome": "luffy eb04",
+      "prezzo": 70
+    },
+    {
+      "data": 1783498454355,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Anime-25th-Collection/MonkeyDLuffy-EB02-061-V2",
+      "media3": 99.38,
+      "nOfferte": 7,
+      "nome": "luffy eb02 anime",
+      "prezzo": 98.9
+    },
+    {
+      "data": 1783498466741,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Awakening-of-the-New-Era-Japanese/MonkeyDLuffy-ST01-012-V1",
+      "media3": 67.63,
+      "nOfferte": 9,
+      "nome": "luffy signed jp",
+      "prezzo": 65
+    },
+    {
+      "data": 1783498477140,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos-Japanese/MonkeyDLuffy-P-041-V4",
+      "media3": 122.4,
+      "nOfferte": 12,
+      "nome": "luffy bcg jp",
+      "prezzo": 97.2
+    },
+    {
+      "data": 1783498489275,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-OP07-109",
+      "media3": 108.33,
+      "nOfferte": 10,
+      "nome": "luffy egghead opd24",
+      "prezzo": 79.99
+    },
+    {
+      "data": 1783498502846,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos/Ryuma-P-072-V1",
+      "media3": 51,
+      "nOfferte": 5,
+      "nome": "Ryuma stamp",
+      "prezzo": 48
+    },
+    {
+      "data": 1783498515523,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-OP13-001",
+      "media3": 48.26,
+      "nOfferte": 4,
+      "nome": "luffy ichiban",
+      "prezzo": 44.9
+    },
+    {
+      "data": 1783498529852,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Carrying-on-his-Will/MonkeyDLuffy-OP13-118-V2",
+      "media3": 78.33,
+      "nOfferte": 15,
+      "nome": "luffy op13 map",
+      "prezzo": 75
+    },
+    {
+      "data": 1783498542006,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Carrying-on-his-Will/PortgasDAce-OP13-119-V2",
+      "media3": 21,
+      "nOfferte": 17,
+      "nome": "ace op13 map",
+      "prezzo": 18.99
+    },
+    {
+      "data": 1783498553134,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/OP16/MonkeyDLuffy-OP16-015-V2",
+      "media3": 34.3,
+      "nOfferte": 11,
+      "nome": "luffy op16",
+      "prezzo": 33.9
     }
   ],
-  "aggiornatoIl": 1783497311780
+  "aggiornatoIl": 1783498558929
 }
