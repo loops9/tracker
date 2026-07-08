@@ -51,9 +51,40 @@
     letter-spacing: 0.08em;
   }
 
-  #lista {
-    padding: 10px 14px 0;
+  #totale {
+    display: none;
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    border-left: 3px solid var(--gold);
   }
+
+  #totale .etichetta {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  #totale .valore {
+    font-size: 26px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  #totale .delta {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .delta.su { color: var(--good); }
+  .delta.giu { color: var(--warn); }
+  .delta.pari { color: var(--muted); }
+
+  #lista { padding: 10px 14px 0; }
 
   .riga {
     display: flex;
@@ -62,12 +93,30 @@
     background: var(--surface);
     border-left: 3px solid var(--gold);
     border-radius: 6px;
-    padding: 14px 14px;
+    padding: 10px 14px 10px 10px;
     margin-bottom: 10px;
+    cursor: pointer;
   }
 
   .riga.stato-vuoto { border-left-color: var(--muted); }
   .riga.stato-bloccato { border-left-color: var(--warn); }
+
+  .miniatura {
+    width: 44px;
+    height: 62px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--surface-2);
+    flex-shrink: 0;
+  }
+
+  .miniatura.vuota {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 18px;
+  }
 
   .info { flex: 1; min-width: 0; }
 
@@ -86,7 +135,7 @@
     letter-spacing: 0.05em;
   }
 
-  .data {
+  .dettagli {
     font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
     font-size: 11px;
     color: var(--muted);
@@ -118,6 +167,27 @@
     font-size: 11px;
   }
 
+  .grafico-box {
+    display: none;
+    background: var(--surface);
+    border-radius: 0 0 6px 6px;
+    margin: -10px 0 10px;
+    padding: 6px 14px 12px;
+  }
+
+  .grafico-box.aperto { display: block; }
+
+  .grafico-box svg { width: 100%; height: 90px; display: block; }
+
+  .grafico-legenda {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+
   #vuoto, #errore {
     padding: 40px 20px;
     text-align: center;
@@ -131,6 +201,11 @@
   <header>
     <h1>Cardmarket Ledger</h1>
     <div class="sottotitolo" id="aggiornato">caricamento...</div>
+    <div id="totale">
+      <div class="etichetta">Valore collezione (minimi IT)</div>
+      <div class="valore" id="totaleValore"></div>
+      <div class="delta" id="totaleDelta"></div>
+    </div>
   </header>
 
   <div id="lista"></div>
@@ -153,9 +228,59 @@ function formattaData(ts) {
          d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 }
 
+function euro(v) { return v.toFixed(2).replace('.', ',') + ' €'; }
+
+function serieCarta(storico, carta) {
+  return storico
+    .filter(function (r) { return r.link === carta.link; })
+    .sort(function (a, b) { return a.data - b.data; });
+}
+
+function calcolaTotale(carte, storico) {
+  var attuale = 0, precedente = 0, haPrecedente = false, conteggiate = 0;
+  carte.forEach(function (c) {
+    if (c.ultimoPrezzo == null) return;
+    var q = c.quantita || 1;
+    attuale += c.ultimoPrezzo * q;
+    conteggiate++;
+    var serie = serieCarta(storico, c);
+    if (serie.length >= 2) {
+      precedente += serie[serie.length - 2].prezzo * q;
+      haPrecedente = true;
+    } else {
+      precedente += c.ultimoPrezzo * q; // nessun dato precedente: contribuisce 0 al delta
+    }
+  });
+  return { attuale: attuale, precedente: precedente, haPrecedente: haPrecedente, conteggiate: conteggiate };
+}
+
+function disegnaSparkline(serie) {
+  var W = 320, H = 90, PAD = 6;
+  var valori = serie.map(function (r) { return r.prezzo; });
+  var min = Math.min.apply(null, valori);
+  var max = Math.max.apply(null, valori);
+  var range = (max - min) || 1;
+
+  var punti = valori.map(function (v, i) {
+    var x = PAD + (i / Math.max(1, valori.length - 1)) * (W - 2 * PAD);
+    var y = H - PAD - ((v - min) / range) * (H - 2 * PAD);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  });
+
+  var linea = punti.join(' ');
+  var area = PAD + ',' + (H - PAD) + ' ' + linea + ' ' + (W - PAD) + ',' + (H - PAD);
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+    '<polygon points="' + area + '" fill="rgba(202,161,92,0.15)"/>' +
+    '<polyline points="' + linea + '" fill="none" stroke="#caa15c" stroke-width="2" ' +
+    'stroke-linejoin="round" stroke-linecap="round"/>' +
+    '</svg>';
+}
+
 function render(dati) {
   var lista = document.getElementById('lista');
   var carte = dati.carte || [];
+  var storico = dati.storico || [];
 
   document.getElementById('aggiornato').textContent =
     'ultimo controllo: ' + (dati.aggiornatoIl ? formattaData(dati.aggiornatoIl) : 'mai');
@@ -165,16 +290,50 @@ function render(dati) {
     return;
   }
 
-  carte.forEach(function (c) {
+  var tot = calcolaTotale(carte, storico);
+  if (tot.conteggiate > 0) {
+    document.getElementById('totale').style.display = 'block';
+    document.getElementById('totaleValore').textContent = euro(tot.attuale);
+    var deltaEl = document.getElementById('totaleDelta');
+    if (tot.haPrecedente) {
+      var diff = tot.attuale - tot.precedente;
+      if (Math.abs(diff) < 0.005) {
+        deltaEl.textContent = 'invariato dal controllo precedente';
+        deltaEl.className = 'delta pari';
+      } else {
+        deltaEl.textContent = (diff > 0 ? '▲ +' : '▼ −') + euro(Math.abs(diff)) + ' dal controllo precedente';
+        deltaEl.className = 'delta ' + (diff > 0 ? 'su' : 'giu');
+      }
+    } else {
+      deltaEl.textContent = 'primo controllo: nessun confronto disponibile';
+      deltaEl.className = 'delta pari';
+    }
+  }
+
+  carte.forEach(function (c, idx) {
     var riga = document.createElement('div');
     riga.className = 'riga';
+
+    if (c.immagine) {
+      var img = document.createElement('img');
+      img.className = 'miniatura';
+      img.src = c.immagine;
+      img.alt = c.nome;
+      img.loading = 'lazy';
+      riga.appendChild(img);
+    } else {
+      var seg = document.createElement('div');
+      seg.className = 'miniatura vuota';
+      seg.textContent = '🂠';
+      riga.appendChild(seg);
+    }
 
     var info = document.createElement('div');
     info.className = 'info';
 
     var nome = document.createElement('div');
     nome.className = 'nome';
-    nome.textContent = c.nome;
+    nome.textContent = c.nome + (c.quantita && c.quantita > 1 ? ' ×' + c.quantita : '');
     info.appendChild(nome);
 
     if (c.filtroInfo) {
@@ -188,11 +347,14 @@ function render(dati) {
 
     if (c.ultimoPrezzo != null) {
       chip.className = 'prezzo-chip';
-      chip.textContent = c.ultimoPrezzo.toFixed(2) + ' €';
-      var dataEl = document.createElement('div');
-      dataEl.className = 'data';
-      dataEl.textContent = formattaData(c.ultimaData);
-      info.appendChild(dataEl);
+      chip.textContent = euro(c.ultimoPrezzo);
+      var dett = document.createElement('div');
+      dett.className = 'dettagli';
+      var parti = [formattaData(c.ultimaData)];
+      if (c.ultimaMedia3 != null) parti.push('med3 ' + euro(c.ultimaMedia3));
+      if (c.ultimeOfferte != null) parti.push(c.ultimeOfferte + ' off. IT');
+      dett.textContent = parti.join(' · ');
+      info.appendChild(dett);
     } else if (c.ultimoBloccato) {
       riga.className += ' stato-bloccato';
       chip.className = 'prezzo-chip bloccato';
@@ -206,6 +368,25 @@ function render(dati) {
     riga.appendChild(info);
     riga.appendChild(chip);
     lista.appendChild(riga);
+
+    // grafico andamento al tocco (se c'è abbastanza storico)
+    var serie = serieCarta(storico, c);
+    if (serie.length >= 2) {
+      var box = document.createElement('div');
+      box.className = 'grafico-box';
+      box.innerHTML = disegnaSparkline(serie) +
+        '<div class="grafico-legenda">' +
+        '<span>' + formattaData(serie[0].data) + '</span>' +
+        '<span>min ' + euro(Math.min.apply(null, serie.map(function (r) { return r.prezzo; }))) +
+        ' · max ' + euro(Math.max.apply(null, serie.map(function (r) { return r.prezzo; }))) + '</span>' +
+        '<span>' + formattaData(serie[serie.length - 1].data) + '</span>' +
+        '</div>';
+      lista.appendChild(box);
+
+      riga.addEventListener('click', function () {
+        box.classList.toggle('aperto');
+      });
+    }
   });
 }
 </script>
