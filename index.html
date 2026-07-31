@@ -216,6 +216,58 @@
     font-size: 14px;
     display: none;
   }
+
+  /* grafico del valore totale nel tempo */
+  #graficoTotale { margin-top: 14px; display: none; }
+  #graficoTotale svg { width: 100%; height: 130px; display: block; }
+  #graficoTotaleLeg {
+    display: flex;
+    justify-content: space-between;
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* movimenti importanti */
+  #movimenti { padding: 14px 14px 0; display: none; }
+  .movimenti-titolo {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+    margin: 0 4px 8px;
+  }
+  .mover {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: var(--surface);
+    border-left: 3px solid var(--muted);
+  }
+  .mover.su { border-left-color: var(--good); }
+  .mover.giu { border-left-color: var(--warn); }
+  .mover-nome { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mover-pct {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .mover-pct.su { color: var(--good); }
+  .mover-pct.giu { color: var(--warn); }
+
+  /* carta con movimento forte: bagliore + badge pieno */
+  .riga.forte-su { box-shadow: 0 0 0 1px rgba(95, 174, 157, 0.55), 0 0 16px rgba(95, 174, 157, 0.22); border-left-color: var(--good); }
+  .riga.forte-giu { box-shadow: 0 0 0 1px rgba(201, 112, 92, 0.55), 0 0 16px rgba(201, 112, 92, 0.22); border-left-color: var(--warn); }
+  .var-badge.forte { font-weight: 700; color: #14182b; }
+  .var-badge.forte.su { background: var(--good); border-color: var(--good); }
+  .var-badge.forte.giu { background: var(--warn); border-color: var(--warn); }
 </style>
 </head>
 <body>
@@ -226,9 +278,12 @@
       <div class="etichetta">Valore collezione (minimi IT)</div>
       <div class="valore" id="totaleValore"></div>
       <div class="delta" id="totaleDelta"></div>
+      <div id="graficoTotale"></div>
+      <div id="graficoTotaleLeg"></div>
     </div>
   </header>
 
+  <div id="movimenti"></div>
   <div id="lista"></div>
   <div id="vuoto">Nessuna carta ancora in lista.<br>Aggiungila dall'estensione sul PC.</div>
   <div id="errore">Impossibile caricare data.json.<br>Fai almeno una sincronizzazione dall'estensione.</div>
@@ -325,6 +380,67 @@ function disegnaSparkline(serie) {
     '</svg>';
 }
 
+// Soglia (in %) oltre la quale un movimento è considerato "importante".
+var SOGLIA_FORTE = 15;
+
+// Ricostruisce il valore della collezione a ogni istante di controllo:
+// per ogni timestamp somma, per ogni carta, l'ultimo prezzo noto fino a
+// quel momento × la quantità posseduta.
+function serieTotale(carte, storico) {
+  var q = {};
+  carte.forEach(function (c) { q[c.link] = c.quantita || 1; });
+
+  var perCarta = {};
+  storico.forEach(function (r) {
+    if (!perCarta[r.link]) perCarta[r.link] = [];
+    perCarta[r.link].push(r);
+  });
+  Object.keys(perCarta).forEach(function (k) {
+    perCarta[k].sort(function (a, b) { return a.data - b.data; });
+  });
+
+  var ts = storico.map(function (r) { return r.data; })
+    .filter(function (v, i, a) { return a.indexOf(v) === i; })
+    .sort(function (a, b) { return a - b; });
+
+  var punti = [];
+  ts.forEach(function (t) {
+    var tot = 0, contate = 0;
+    Object.keys(perCarta).forEach(function (link) {
+      var arr = perCarta[link], p = null;
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].data <= t) p = arr[i].prezzo; else break;
+      }
+      if (p != null) { tot += p * (q[link] || 1); contate++; }
+    });
+    if (contate > 0) punti.push({ data: t, totale: tot });
+  });
+  return punti;
+}
+
+function disegnaGraficoTotale(punti) {
+  var W = 320, H = 130, PAD = 8;
+  var valori = punti.map(function (p) { return p.totale; });
+  var min = Math.min.apply(null, valori);
+  var max = Math.max.apply(null, valori);
+  var range = (max - min) || 1;
+
+  var pts = valori.map(function (v, i) {
+    var x = PAD + (i / Math.max(1, valori.length - 1)) * (W - 2 * PAD);
+    var y = H - PAD - ((v - min) / range) * (H - 2 * PAD);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  });
+
+  var linea = pts.join(' ');
+  var area = PAD + ',' + (H - PAD) + ' ' + linea + ' ' + (W - PAD) + ',' + (H - PAD);
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+    '<polygon points="' + area + '" fill="rgba(202,161,92,0.15)"/>' +
+    '<polyline points="' + linea + '" fill="none" stroke="#caa15c" stroke-width="2" ' +
+    'stroke-linejoin="round" stroke-linecap="round"/>' +
+    '</svg>';
+}
+
 function render(dati) {
   var lista = document.getElementById('lista');
   var carte = dati.carte || [];
@@ -356,6 +472,49 @@ function render(dati) {
       deltaEl.textContent = 'primo controllo: nessun confronto disponibile';
       deltaEl.className = 'delta pari';
     }
+  }
+
+  // Grafico dell'andamento del valore totale (se ci sono almeno 2 controlli).
+  var puntiTot = serieTotale(carte, storico);
+  var gtEl = document.getElementById('graficoTotale');
+  var gtLeg = document.getElementById('graficoTotaleLeg');
+  if (puntiTot.length >= 2) {
+    gtEl.style.display = 'block';
+    gtEl.innerHTML = disegnaGraficoTotale(puntiTot);
+    var valTot = puntiTot.map(function (p) { return p.totale; });
+    gtLeg.innerHTML =
+      '<span>' + formattaData(puntiTot[0].data) + '</span>' +
+      '<span>min ' + euro(Math.min.apply(null, valTot)) + ' · max ' + euro(Math.max.apply(null, valTot)) + '</span>' +
+      '<span>' + formattaData(puntiTot[puntiTot.length - 1].data) + '</span>';
+  }
+
+  // Movimenti importanti: carte oltre la soglia, dalla più mossa alla meno.
+  var movers = [];
+  carte.forEach(function (c) {
+    if (c.ultimoPrezzo == null) return;
+    var vv = variazioneCarta(serieCarta(storico, c));
+    if (vv && Math.abs(vv.pct) >= SOGLIA_FORTE) {
+      movers.push({ nome: c.nome, pct: vv.pct, etichetta: vv.etichetta });
+    }
+  });
+  movers.sort(function (a, b) { return Math.abs(b.pct) - Math.abs(a.pct); });
+
+  var movEl = document.getElementById('movimenti');
+  if (movers.length) {
+    movEl.style.display = 'block';
+    var html = '<div class="movimenti-titolo">Movimenti importanti (±' + SOGLIA_FORTE + '%)</div>';
+    movers.forEach(function (m) {
+      var dir = m.pct > 0 ? 'su' : 'giu';
+      var freccia = m.pct > 0 ? '▲ +' : '▼ −';
+      html += '<div class="mover ' + dir + '">' +
+        '<span class="mover-nome">' + m.nome + '</span>' +
+        '<span class="mover-pct ' + dir + '">' + freccia +
+        Math.abs(m.pct).toFixed(1).replace('.', ',') + '% · ' + m.etichetta + '</span>' +
+        '</div>';
+    });
+    movEl.innerHTML = html;
+  } else {
+    movEl.style.display = 'none';
   }
 
   carte.forEach(function (c, idx) {
@@ -430,9 +589,14 @@ function render(dati) {
           vb.className = 'var-badge pari';
           vb.textContent = '= 0% · ' + v.etichetta;
         } else {
-          vb.className = 'var-badge ' + (v.pct > 0 ? 'su' : 'giu');
+          var dir = v.pct > 0 ? 'su' : 'giu';
+          vb.className = 'var-badge ' + dir;
           vb.textContent = (v.pct > 0 ? '▲ +' : '▼ −') +
             Math.abs(v.pct).toFixed(1).replace('.', ',') + '% · ' + v.etichetta;
+          if (Math.abs(v.pct) >= SOGLIA_FORTE) {
+            vb.className += ' forte';
+            riga.className += ' forte-' + dir;
+          }
         }
         colDx.appendChild(vb);
       }
