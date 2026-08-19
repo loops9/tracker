@@ -21,12 +21,12 @@
       "immagineUrl": "https://static.cardmarket.com/img/logos/cardmarket.png",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Booster-Boxes/Heroines-Edition-Booster-Box",
       "nome": "eb03 box",
-      "ultimaData": 1787139174906,
-      "ultimaMedia3": null,
-      "ultimeOfferte": 0,
+      "ultimaData": 1787140189335,
+      "ultimaMedia3": 313.33,
+      "ultimeOfferte": 8,
       "ultimoBloccato": false,
-      "ultimoErrore": "No tab with id: 1357811867",
-      "ultimoPrezzo": null
+      "ultimoErrore": null,
+      "ultimoPrezzo": 290
     },
     {
       "filtroInfo": null,
@@ -7131,7 +7131,15 @@
       "nOfferte": 22,
       "nome": "box op01",
       "prezzo": 1200
+    },
+    {
+      "data": 1787140189335,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Booster-Boxes/Heroines-Edition-Booster-Box",
+      "media3": 313.33,
+      "nOfferte": 8,
+      "nome": "eb03 box",
+      "prezzo": 290
     }
   ],
-  "aggiornatoIl": 1787139607757
+  "aggiornatoIl": 1787140189545
 }
