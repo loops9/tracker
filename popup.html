@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Cardmarket Tracker</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; width: 380px; padding: 10px; font-size: 13px; color: #222; }
+  h1 { font-size: 15px; margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th, td { text-align: left; padding: 4px 2px; border-bottom: 1px solid #e2e2e2; font-size: 12px; vertical-align: top; }
+  th { color: #555; font-weight: 600; }
+  input { width: 100%; box-sizing: border-box; margin-bottom: 5px; padding: 5px; font-size: 12px; }
+  button { padding: 6px 10px; margin-right: 6px; margin-top: 4px; cursor: pointer; font-size: 12px; }
+  #stato { font-size: 12px; color: #666; margin-top: 8px; white-space: pre-line; min-height: 14px; }
+  .prezzo { font-weight: bold; white-space: nowrap; }
+  .azioni { text-align: right; white-space: nowrap; }
+  .ricontrolla { cursor: pointer; color: #06c; padding: 0 4px; font-size: 14px; }
+  .ricontrolla[aria-disabled="true"] { color: #aaa; cursor: default; }
+  .rimuovi { cursor: pointer; color: #c00; padding: 0 4px; font-size: 14px; }
+  .vuoto { color: #999; font-style: italic; }
+  .data { color: #888; font-size: 11px; }
+</style>
+</head>
+<body>
+  <h1>Cardmarket Tracker – One Piece</h1>
+
+  <table>
+    <thead><tr><th>Carta</th><th>Prezzo IT</th><th>Azioni</th></tr></thead>
+    <tbody id="tabellaCarte"></tbody>
+  </table>
+
+  <input id="inputNome" placeholder="Nome carta">
+  <input id="inputLink" placeholder="Link Cardmarket (con /it/ nell'URL)">
+  <input id="inputFiltro" placeholder="Filtro info (es. PSA 10, oppure sealed|sigillato)">
+  <input id="inputQuantita" type="number" min="1" value="1" placeholder="Quantità posseduta">
+  <button id="btnAggiungi">+ Aggiungi carta</button>
+
+  <div>
+    <button id="btnControlla">Controlla ora</button>
+    <button id="btnEsporta">Esporta CSV</button>
+    <button id="btnStorico">Mostra storico</button>
+  </div>
+
+  <div>
+    <button id="btnEsportaConfig">Esporta lista carte</button>
+    <button id="btnImportaConfig">Importa lista carte</button>
+    <input type="file" id="inputImporta" accept="application/json" style="display:none;">
+  </div>
+
+  <div>
+    <button id="btnImpostazioni">Impostazioni GitHub (per il telefono)</button>
+  </div>
+
+  <div id="impostazioniContainer" style="display:none; margin-top:8px;">
+    <input id="inputGithubOwner" placeholder="Utente GitHub (es. tommaso)">
+    <input id="inputGithubRepo" placeholder="Nome repository (es. cardmarket-prezzi)">
+    <input id="inputGithubToken" type="password" placeholder="Personal Access Token">
+    <button id="btnSalvaImpostazioni">Salva</button>
+    <button id="btnSincronizzaOra">Sincronizza ora</button>
+  </div>
+
+  <div id="stato"></div>
+
+  <div id="storicoContainer" style="display:none; max-height:160px; overflow-y:auto; margin-top:8px;">
+    <table id="tabellaStorico">
+      <thead><tr><th>Data</th><th>Carta</th><th>Prezzo</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

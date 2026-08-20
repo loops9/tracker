@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Cardmarket Price Tracker - One Piece",
+  "version": "1.0",
+  "description": "Controlla il prezzo piu basso dall'Italia delle tue carte One Piece su Cardmarket.",
+  "permissions": ["storage", "tabs", "scripting", "alarms", "declarativeNetRequest"],
+  "host_permissions": ["https://*.cardmarket.com/*", "https://api.github.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+  },
+  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+}
