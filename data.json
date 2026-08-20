@@ -524,9 +524,19 @@
       "link": "https://www.cardmarket.com/en/OnePiece/Products/Singles/Promos/MonkeyDLuffy-P-043-V2?sellerCountry=17",
       "nome": "luffy lucca psa10",
       "quantita": 1,
-      "ultimaData": 1787219073485,
+      "ultimaData": 1787227293401,
       "ultimaMedia3": null,
       "ultimeOfferte": 0,
+      "ultimoBloccato": false,
+      "ultimoErrore": null,
+      "ultimoPrezzo": null
+    },
+    {
+      "filtroInfo": null,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Adventure-on-Kamis-Island/Enel-OP15-118-V3?sellerCountry=17",
+      "nome": "Enel Manga",
+      "quantita": 1,
+      "ultimaData": null,
       "ultimoBloccato": false,
       "ultimoErrore": null,
       "ultimoPrezzo": null
@@ -7444,5 +7454,5 @@
       "prezzo": 3999
     }
   ],
-  "aggiornatoIl": 1787219094614
+  "aggiornatoIl": 1787227293677
 }
