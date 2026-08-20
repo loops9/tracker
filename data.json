@@ -299,7 +299,7 @@
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Promo-Products/1st-Anniversary-Set-English-Version",
       "nome": "1st anniversary",
       "quantita": 1,
-      "ultimaData": 1787218708604,
+      "ultimaData": 1787219094358,
       "ultimaMedia3": 5599.67,
       "ultimeOfferte": 8,
       "ultimoBloccato": false,
@@ -7434,7 +7434,15 @@
       "nOfferte": 22,
       "nome": "box op01",
       "prezzo": 1200
+    },
+    {
+      "data": 1787219094358,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Promo-Products/1st-Anniversary-Set-English-Version",
+      "media3": 5599.67,
+      "nOfferte": 8,
+      "nome": "1st anniversary",
+      "prezzo": 3999
     }
   ],
-  "aggiornatoIl": 1787219073656
+  "aggiornatoIl": 1787219094614
 }
