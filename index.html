@@ -52,6 +52,8 @@
     letter-spacing: 0.08em;
   }
 
+  .sottotitolo .cache { color: var(--gold); }
+
   #totale {
     display: none;
     margin-top: 14px;
@@ -84,6 +86,13 @@
   .delta.su { color: var(--good); }
   .delta.giu { color: var(--warn); }
   .delta.pari { color: var(--muted); }
+
+  .nota-stima {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
 
   #lista { padding: 10px 14px 0; }
 
@@ -168,6 +177,12 @@
     font-size: 11px;
   }
 
+  .prezzo-chip.stimato {
+    background: transparent;
+    border: 1px dashed var(--gold);
+    color: var(--gold);
+  }
+
   .col-dx {
     display: flex;
     flex-direction: column;
@@ -229,6 +244,33 @@
     margin-top: 4px;
   }
 
+  /* selettore periodo del grafico totale */
+  #periodi { display: none; gap: 6px; margin-top: 12px; }
+  .chip-periodo {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid rgba(125, 130, 150, 0.4);
+    border-radius: 999px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  .chip-periodo.attivo { color: var(--bg); background: var(--gold); border-color: var(--gold); }
+
+  /* barra di ordinamento della lista */
+  #ordina { display: none; gap: 6px; padding: 14px 14px 0; align-items: center; flex-wrap: wrap; }
+  #ordina .etichetta-ordina {
+    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+    margin-right: 2px;
+  }
+
   /* movimenti importanti */
   #movimenti { padding: 14px 14px 0; display: none; }
   .movimenti-titolo {
@@ -268,6 +310,19 @@
   .var-badge.forte { font-weight: 700; color: #14182b; }
   .var-badge.forte.su { background: var(--good); border-color: var(--good); }
   .var-badge.forte.giu { background: var(--warn); border-color: var(--warn); }
+
+  /* scheletro mostrato al primo avvio, finché data.json non è arrivato */
+  #scheletro { padding: 10px 14px 0; display: none; }
+  .sk-riga {
+    height: 82px;
+    border-radius: 6px;
+    background: var(--surface);
+    border-left: 3px solid rgba(202, 161, 92, 0.3);
+    margin-bottom: 10px;
+    opacity: 0.5;
+    animation: pulsa 1.4s ease-in-out infinite;
+  }
+  @keyframes pulsa { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.6; } }
 </style>
 </head>
 <body>
@@ -278,24 +333,137 @@
       <div class="etichetta">Valore collezione (minimi IT)</div>
       <div class="valore" id="totaleValore"></div>
       <div class="delta" id="totaleDelta"></div>
+      <div class="nota-stima" id="notaStima"></div>
+      <div id="periodi"></div>
       <div id="graficoTotale"></div>
       <div id="graficoTotaleLeg"></div>
     </div>
   </header>
 
   <div id="movimenti"></div>
+  <div id="ordina"></div>
   <div id="lista"></div>
+  <div id="scheletro"></div>
   <div id="vuoto">Nessuna carta ancora in lista.<br>Aggiungila dall'estensione sul PC.</div>
   <div id="errore">Impossibile caricare data.json.<br>Fai almeno una sincronizzazione dall'estensione.</div>
 
 <script>
-fetch('data.json?t=' + Date.now())
-  .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
-  .then(render)
+// ---------------------------------------------------------------------------
+// Costanti
+// ---------------------------------------------------------------------------
+
+// Record dello storico distanti meno di questo intervallo appartengono allo
+// stesso controllo: l'estensione legge le carte una alla volta, quindi un
+// singolo giro produce decine di timestamp diversi.
+var GAP_SESSIONE = 30 * 60 * 1000;
+
+// Soglia (in %) oltre la quale un movimento è considerato "importante".
+var SOGLIA_FORTE = 15;
+
+var CHIAVE_CACHE = 'ledger:data';
+var CHIAVE_ORDINE = 'ledger:ordine';
+
+var PERIODI = [
+  { id: '7g', etichetta: '7 giorni', giorni: 7 },
+  { id: '30g', etichetta: '30 giorni', giorni: 30 },
+  { id: 'tutto', etichetta: 'tutto', giorni: null }
+];
+
+var ORDINAMENTI = [
+  { id: 'lista', etichetta: 'lista' },
+  { id: 'valore', etichetta: 'valore' },
+  { id: 'variazione', etichetta: 'variazione' },
+  { id: 'nome', etichetta: 'nome' }
+];
+
+// Stato di rendering condiviso fra i controlli (periodo, ordinamento).
+var stato = {
+  dati: null,
+  indice: null,
+  periodo: 'tutto',
+  ordine: leggi(CHIAVE_ORDINE) || 'lista'
+};
+
+// ---------------------------------------------------------------------------
+// Avvio: prima la cache locale (istantanea), poi la rete
+// ---------------------------------------------------------------------------
+
+var testoCache = leggi(CHIAVE_CACHE);
+var mostrataCache = false;
+
+if (testoCache) {
+  try {
+    render(JSON.parse(testoCache), true);
+    mostrataCache = true;
+  } catch (e) {
+    scrivi(CHIAVE_CACHE, null);
+  }
+}
+
+if (!mostrataCache) mostraScheletro();
+
+// Niente cache-buster: con una richiesta rivalidata GitHub Pages risponde 304
+// (senza corpo) quando data.json non è cambiato, invece di rispedire tutto.
+fetch('data.json', { cache: 'no-cache' })
+  .then(function (r) {
+    if (!r.ok) throw new Error('http ' + r.status);
+    return r.text();
+  })
+  .then(function (testo) {
+    var dati = JSON.parse(testo);
+    // Se il contenuto è identico a quello già disegnato dalla cache, evita
+    // un secondo render (e il relativo sfarfallio).
+    if (!mostrataCache || testo !== testoCache) {
+      scrivi(CHIAVE_CACHE, testo);
+      render(dati, false);
+    } else {
+      segnaFreschezza(dati, false);
+    }
+  })
   .catch(function () {
-    document.getElementById('aggiornato').textContent = 'nessun dato';
-    document.getElementById('errore').style.display = 'block';
+    if (mostrataCache) {
+      // I dati a schermo restano validi: segnala solo che sono quelli locali.
+      var el = document.getElementById('aggiornato');
+      el.innerHTML = el.textContent + ' <span class="cache">· offline</span>';
+    } else {
+      nascondiScheletro();
+      document.getElementById('aggiornato').textContent = 'nessun dato';
+      document.getElementById('errore').style.display = 'block';
+    }
   });
+
+// Con il service worker la pagina si apre anche senza rete e non viene
+// riscaricata a ogni avvio dalla schermata Home.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () { /* opzionale */ });
+  });
+}
+
+function leggi(chiave) {
+  try { return localStorage.getItem(chiave); } catch (e) { return null; }
+}
+
+function scrivi(chiave, valore) {
+  try {
+    if (valore === null) localStorage.removeItem(chiave);
+    else localStorage.setItem(chiave, valore);
+  } catch (e) { /* quota piena o storage negato: la pagina funziona lo stesso */ }
+}
+
+function mostraScheletro() {
+  var sk = document.getElementById('scheletro');
+  sk.innerHTML = new Array(7).join('<div class="sk-riga"></div>');
+  sk.style.display = 'block';
+}
+
+function nascondiScheletro() {
+  document.getElementById('scheletro').style.display = 'none';
+}
+
+// ---------------------------------------------------------------------------
+// Formattazione
+// ---------------------------------------------------------------------------
 
 function formattaData(ts) {
   if (!ts) return '';
@@ -304,12 +472,135 @@ function formattaData(ts) {
          d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 }
 
+function formattaGiorno(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+}
+
 function euro(v) { return v.toFixed(2).replace('.', ',') + ' €'; }
 
-function serieCarta(storico, carta) {
-  return storico
-    .filter(function (r) { return r.link === carta.link; })
-    .sort(function (a, b) { return a.data - b.data; });
+function pct(v) { return Math.abs(v).toFixed(1).replace('.', ',') + '%'; }
+
+// ---------------------------------------------------------------------------
+// Indicizzazione dello storico
+// ---------------------------------------------------------------------------
+
+// Raggruppa lo storico per link una volta sola, invece di rifiltrare l'intero
+// array a ogni carta (era O(carte × storico) ripetuto tre volte per render).
+function indicizza(storico) {
+  var per = {};
+  for (var i = 0; i < storico.length; i++) {
+    var r = storico[i];
+    if (!per[r.link]) per[r.link] = [];
+    per[r.link].push(r);
+  }
+  Object.keys(per).forEach(function (k) {
+    per[k].sort(function (a, b) { return a.data - b.data; });
+  });
+  return per;
+}
+
+function serieCarta(indice, carta) {
+  return indice[carta.link] || [];
+}
+
+// Ultimo prezzo noto di una carta a un dato istante (ricerca binaria).
+function prezzoAl(serie, t) {
+  var lo = 0, hi = serie.length - 1, res = null;
+  while (lo <= hi) {
+    var mid = (lo + hi) >> 1;
+    if (serie[mid].data <= t) { res = serie[mid].prezzo; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  return res;
+}
+
+// Istanti di fine di ogni controllo. Prendendo l'ultimo timestamp del gruppo
+// il totale include tutte le carte lette in quel giro: senza questo il grafico
+// disegnava la somma parziale mentre lo scraping era ancora in corso.
+function fineControlli(storico) {
+  var ts = [];
+  for (var i = 0; i < storico.length; i++) ts.push(storico[i].data);
+  ts.sort(function (a, b) { return a - b; });
+
+  var fini = [];
+  for (var j = 0; j < ts.length; j++) {
+    if (j === ts.length - 1 || ts[j + 1] - ts[j] > GAP_SESSIONE) fini.push(ts[j]);
+  }
+  return fini;
+}
+
+// ---------------------------------------------------------------------------
+// Valore della collezione
+// ---------------------------------------------------------------------------
+
+// Solo le carte presenti in `carte`: iterando sullo storico si continuavano a
+// sommare le carte tolte dalla collezione (erano 1.183,90 € di scarto fra il
+// totale in alto e l'ultimo punto del grafico).
+function valoreAl(carte, indice, t) {
+  var tot = 0, contate = 0;
+  for (var i = 0; i < carte.length; i++) {
+    var c = carte[i];
+    var serie = indice[c.link];
+    if (!serie || !serie.length) continue;
+    var p = prezzoAl(serie, t);
+    if (p != null) { tot += p * (c.quantita || 1); contate++; }
+  }
+  return { totale: tot, contate: contate };
+}
+
+// Valore corrente. Una carta il cui ultimo controllo è fallito (anti-bot o
+// errore) non sparisce dal totale: vale il suo ultimo prezzo noto, segnalato
+// come stimato.
+function valoreCorrente(carte, indice) {
+  var tot = 0, contate = 0, stimate = 0, mancanti = 0;
+  carte.forEach(function (c) {
+    var q = c.quantita || 1;
+    var p = c.ultimoPrezzo;
+    if (p == null) {
+      var serie = indice[c.link];
+      p = serie && serie.length ? serie[serie.length - 1].prezzo : null;
+      if (p != null) stimate++;
+    }
+    if (p != null) { tot += p * q; contate++; }
+    else mancanti++;
+  });
+  return { totale: tot, contate: contate, stimate: stimate, mancanti: mancanti };
+}
+
+function serieTotale(carte, indice, storico) {
+  var punti = [];
+  fineControlli(storico).forEach(function (t) {
+    var v = valoreAl(carte, indice, t);
+    if (v.contate > 0) punti.push({ data: t, totale: v.totale, contate: v.contate });
+  });
+  return punti;
+}
+
+// Confronto con il controllo precedente, contando solo le carte presenti in
+// entrambi: altrimenti una carta appena aggiunta al tracker viene letta come
+// un guadagno di mercato (l'ultimo controllo mostrava +900 € che erano
+// semplicemente una carta nuova).
+function confrontoUltimi(carte, indice, storico) {
+  var fini = fineControlli(storico);
+  if (fini.length < 2) return null;
+
+  var tPrec = fini[fini.length - 2];
+  var tOra = fini[fini.length - 1];
+  var delta = 0, nuove = 0, valNuove = 0;
+
+  carte.forEach(function (c) {
+    var serie = indice[c.link];
+    if (!serie || !serie.length) return;
+    var q = c.quantita || 1;
+    var prima = prezzoAl(serie, tPrec);
+    var dopo = prezzoAl(serie, tOra);
+    if (dopo == null) return;
+    if (prima == null) { nuove++; valNuove += dopo * q; }
+    else delta += (dopo - prima) * q;
+  });
+
+  return { delta: delta, nuove: nuove, valNuove: valNuove, data: tPrec };
 }
 
 // Variazione percentuale dell'ultimo prezzo rispetto a ~7 giorni prima.
@@ -335,99 +626,30 @@ function variazioneCarta(serie) {
   }
 
   if (!rif || !rif.prezzo) return null;
-  var pct = ((ultimo.prezzo - rif.prezzo) / rif.prezzo) * 100;
-  return { pct: pct, etichetta: etichetta };
+  var p = ((ultimo.prezzo - rif.prezzo) / rif.prezzo) * 100;
+  return { pct: p, etichetta: etichetta };
 }
 
-function calcolaTotale(carte, storico) {
-  var attuale = 0, precedente = 0, haPrecedente = false, conteggiate = 0;
-  carte.forEach(function (c) {
-    if (c.ultimoPrezzo == null) return;
-    var q = c.quantita || 1;
-    attuale += c.ultimoPrezzo * q;
-    conteggiate++;
-    var serie = serieCarta(storico, c);
-    if (serie.length >= 2) {
-      precedente += serie[serie.length - 2].prezzo * q;
-      haPrecedente = true;
-    } else {
-      precedente += c.ultimoPrezzo * q; // nessun dato precedente: contribuisce 0 al delta
-    }
-  });
-  return { attuale: attuale, precedente: precedente, haPrecedente: haPrecedente, conteggiate: conteggiate };
-}
+// ---------------------------------------------------------------------------
+// Grafici
+// ---------------------------------------------------------------------------
 
-function disegnaSparkline(serie) {
-  var W = 320, H = 90, PAD = 6;
-  var valori = serie.map(function (r) { return r.prezzo; });
-  var min = Math.min.apply(null, valori);
-  var max = Math.max.apply(null, valori);
-  var range = (max - min) || 1;
-
-  var punti = valori.map(function (v, i) {
-    var x = PAD + (i / Math.max(1, valori.length - 1)) * (W - 2 * PAD);
-    var y = H - PAD - ((v - min) / range) * (H - 2 * PAD);
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  });
-
-  var linea = punti.join(' ');
-  var area = PAD + ',' + (H - PAD) + ' ' + linea + ' ' + (W - PAD) + ',' + (H - PAD);
-
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
-    '<polygon points="' + area + '" fill="rgba(202,161,92,0.15)"/>' +
-    '<polyline points="' + linea + '" fill="none" stroke="#caa15c" stroke-width="2" ' +
-    'stroke-linejoin="round" stroke-linecap="round"/>' +
-    '</svg>';
-}
-
-// Soglia (in %) oltre la quale un movimento è considerato "importante".
-var SOGLIA_FORTE = 15;
-
-// Ricostruisce il valore della collezione a ogni istante di controllo:
-// per ogni timestamp somma, per ogni carta, l'ultimo prezzo noto fino a
-// quel momento × la quantità posseduta.
-function serieTotale(carte, storico) {
-  var q = {};
-  carte.forEach(function (c) { q[c.link] = c.quantita || 1; });
-
-  var perCarta = {};
-  storico.forEach(function (r) {
-    if (!perCarta[r.link]) perCarta[r.link] = [];
-    perCarta[r.link].push(r);
-  });
-  Object.keys(perCarta).forEach(function (k) {
-    perCarta[k].sort(function (a, b) { return a.data - b.data; });
-  });
-
-  var ts = storico.map(function (r) { return r.data; })
-    .filter(function (v, i, a) { return a.indexOf(v) === i; })
-    .sort(function (a, b) { return a - b; });
-
-  var punti = [];
-  ts.forEach(function (t) {
-    var tot = 0, contate = 0;
-    Object.keys(perCarta).forEach(function (link) {
-      var arr = perCarta[link], p = null;
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i].data <= t) p = arr[i].prezzo; else break;
-      }
-      if (p != null) { tot += p * (q[link] || 1); contate++; }
-    });
-    if (contate > 0) punti.push({ data: t, totale: tot });
-  });
-  return punti;
-}
-
-function disegnaGraficoTotale(punti) {
-  var W = 320, H = 130, PAD = 8;
+// X proporzionale al tempo reale, non all'indice del punto: i controlli sono
+// distanziati da poche ore a sei giorni, e spaziarli in modo uniforme
+// falsava la forma della curva.
+function disegnaGrafico(punti, W, H, PAD) {
   var valori = punti.map(function (p) { return p.totale; });
   var min = Math.min.apply(null, valori);
   var max = Math.max.apply(null, valori);
   var range = (max - min) || 1;
 
-  var pts = valori.map(function (v, i) {
-    var x = PAD + (i / Math.max(1, valori.length - 1)) * (W - 2 * PAD);
-    var y = H - PAD - ((v - min) / range) * (H - 2 * PAD);
+  var t0 = punti[0].data;
+  var tN = punti[punti.length - 1].data;
+  var durata = (tN - t0) || 1;
+
+  var pts = punti.map(function (p) {
+    var x = PAD + ((p.data - t0) / durata) * (W - 2 * PAD);
+    var y = H - PAD - ((p.totale - min) / range) * (H - 2 * PAD);
     return x.toFixed(1) + ',' + y.toFixed(1);
   });
 
@@ -441,58 +663,140 @@ function disegnaGraficoTotale(punti) {
     '</svg>';
 }
 
-function render(dati) {
-  var lista = document.getElementById('lista');
+function disegnaSparkline(serie) {
+  return disegnaGrafico(serie.map(function (r) {
+    return { data: r.data, totale: r.prezzo };
+  }), 320, 90, 6);
+}
+
+function filtraPeriodo(punti, giorni) {
+  if (!giorni || !punti.length) return punti;
+  var limite = punti[punti.length - 1].data - giorni * 86400000;
+  var dentro = punti.filter(function (p) { return p.data >= limite; });
+  return dentro.length >= 2 ? dentro : punti;
+}
+
+function aggiornaGraficoTotale() {
+  var gtEl = document.getElementById('graficoTotale');
+  var gtLeg = document.getElementById('graficoTotaleLeg');
+  var punti = filtraPeriodo(stato.puntiTotale, periodoAttivo().giorni);
+
+  if (punti.length < 2) { gtEl.style.display = 'none'; gtLeg.innerHTML = ''; return; }
+
+  gtEl.style.display = 'block';
+  gtEl.innerHTML = disegnaGrafico(punti, 320, 130, 8);
+
+  var valori = punti.map(function (p) { return p.totale; });
+  gtLeg.innerHTML =
+    '<span>' + formattaGiorno(punti[0].data) + '</span>' +
+    '<span>min ' + euro(Math.min.apply(null, valori)) +
+    ' · max ' + euro(Math.max.apply(null, valori)) + '</span>' +
+    '<span>' + formattaGiorno(punti[punti.length - 1].data) + '</span>';
+}
+
+function periodoAttivo() {
+  for (var i = 0; i < PERIODI.length; i++) {
+    if (PERIODI[i].id === stato.periodo) return PERIODI[i];
+  }
+  return PERIODI[PERIODI.length - 1];
+}
+
+function costruisciChip(contenitore, voci, attivo, onScelta) {
+  contenitore.innerHTML = '';
+  voci.forEach(function (v) {
+    var b = document.createElement('button');
+    b.className = 'chip-periodo' + (v.id === attivo ? ' attivo' : '');
+    b.textContent = v.etichetta;
+    b.addEventListener('click', function () { onScelta(v.id); });
+    contenitore.appendChild(b);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+
+function segnaFreschezza(dati, daCache) {
+  document.getElementById('aggiornato').innerHTML =
+    'ultimo controllo: ' + (dati.aggiornatoIl ? formattaData(dati.aggiornatoIl) : 'mai') +
+    (daCache ? ' <span class="cache">· in cache</span>' : '');
+}
+
+function render(dati, daCache) {
+  nascondiScheletro();
+
   var carte = dati.carte || [];
   var storico = dati.storico || [];
+  var indice = indicizza(storico);
 
-  document.getElementById('aggiornato').textContent =
-    'ultimo controllo: ' + (dati.aggiornatoIl ? formattaData(dati.aggiornatoIl) : 'mai');
+  stato.dati = dati;
+  stato.indice = indice;
+
+  segnaFreschezza(dati, daCache);
 
   if (carte.length === 0) {
     document.getElementById('vuoto').style.display = 'block';
     return;
   }
+  document.getElementById('vuoto').style.display = 'none';
 
-  var tot = calcolaTotale(carte, storico);
-  if (tot.conteggiate > 0) {
+  // --- totale ------------------------------------------------------------
+  var val = valoreCorrente(carte, indice);
+  stato.puntiTotale = serieTotale(carte, indice, storico);
+
+  if (val.contate > 0) {
     document.getElementById('totale').style.display = 'block';
-    document.getElementById('totaleValore').textContent = euro(tot.attuale);
+    document.getElementById('totaleValore').textContent = euro(val.totale);
+
     var deltaEl = document.getElementById('totaleDelta');
-    if (tot.haPrecedente) {
-      var diff = tot.attuale - tot.precedente;
+    var conf = confrontoUltimi(carte, indice, storico);
+    var note = [];
+
+    if (conf) {
+      var diff = conf.delta;
       if (Math.abs(diff) < 0.005) {
-        deltaEl.textContent = 'invariato dal controllo precedente';
+        deltaEl.textContent = 'mercato invariato dal ' + formattaGiorno(conf.data);
         deltaEl.className = 'delta pari';
       } else {
-        deltaEl.textContent = (diff > 0 ? '▲ +' : '▼ −') + euro(Math.abs(diff)) + ' dal controllo precedente';
+        deltaEl.textContent = (diff > 0 ? '▲ +' : '▼ −') + euro(Math.abs(diff)) +
+          ' dal controllo del ' + formattaGiorno(conf.data);
         deltaEl.className = 'delta ' + (diff > 0 ? 'su' : 'giu');
+      }
+      if (conf.nuove) {
+        note.push('+' + conf.nuove + (conf.nuove === 1 ? ' carta nuova' : ' carte nuove') +
+          ' (' + euro(conf.valNuove) + ', fuori dal confronto)');
       }
     } else {
       deltaEl.textContent = 'primo controllo: nessun confronto disponibile';
       deltaEl.className = 'delta pari';
     }
+
+    if (val.stimate) note.push(val.stimate + (val.stimate === 1 ? ' carta stimata' : ' carte stimate') + ' (ultimo prezzo noto)');
+    if (val.mancanti) note.push(val.mancanti + (val.mancanti === 1 ? ' carta esclusa' : ' carte escluse') + ' (mai rilevata)');
+    document.getElementById('notaStima').textContent = note.join(' · ');
   }
 
-  // Grafico dell'andamento del valore totale (se ci sono almeno 2 controlli).
-  var puntiTot = serieTotale(carte, storico);
-  var gtEl = document.getElementById('graficoTotale');
-  var gtLeg = document.getElementById('graficoTotaleLeg');
-  if (puntiTot.length >= 2) {
-    gtEl.style.display = 'block';
-    gtEl.innerHTML = disegnaGraficoTotale(puntiTot);
-    var valTot = puntiTot.map(function (p) { return p.totale; });
-    gtLeg.innerHTML =
-      '<span>' + formattaData(puntiTot[0].data) + '</span>' +
-      '<span>min ' + euro(Math.min.apply(null, valTot)) + ' · max ' + euro(Math.max.apply(null, valTot)) + '</span>' +
-      '<span>' + formattaData(puntiTot[puntiTot.length - 1].data) + '</span>';
+  var perEl = document.getElementById('periodi');
+  if (stato.puntiTotale.length >= 2) {
+    perEl.style.display = 'flex';
+    // Cambiare periodo ridisegna solo l'SVG del totale, non tutta la lista.
+    var scegliPeriodo = function (id) {
+      stato.periodo = id;
+      costruisciChip(perEl, PERIODI, id, scegliPeriodo);
+      aggiornaGraficoTotale();
+    };
+    costruisciChip(perEl, PERIODI, stato.periodo, scegliPeriodo);
+  } else {
+    perEl.style.display = 'none';
   }
 
-  // Movimenti importanti: carte oltre la soglia, dalla più mossa alla meno.
+  aggiornaGraficoTotale();
+
+  // --- movimenti importanti ---------------------------------------------
   var movers = [];
   carte.forEach(function (c) {
     if (c.ultimoPrezzo == null) return;
-    var vv = variazioneCarta(serieCarta(storico, c));
+    var vv = variazioneCarta(serieCarta(indice, c));
     if (vv && Math.abs(vv.pct) >= SOGLIA_FORTE) {
       movers.push({ nome: c.nome, pct: vv.pct, etichetta: vv.etichetta });
     }
@@ -507,15 +811,86 @@ function render(dati) {
       var dir = m.pct > 0 ? 'su' : 'giu';
       var freccia = m.pct > 0 ? '▲ +' : '▼ −';
       html += '<div class="mover ' + dir + '">' +
-        '<span class="mover-nome">' + m.nome + '</span>' +
-        '<span class="mover-pct ' + dir + '">' + freccia +
-        Math.abs(m.pct).toFixed(1).replace('.', ',') + '% · ' + m.etichetta + '</span>' +
+        '<span class="mover-nome"></span>' +
+        '<span class="mover-pct ' + dir + '">' + freccia + pct(m.pct) + ' · ' + m.etichetta + '</span>' +
         '</div>';
     });
     movEl.innerHTML = html;
+    // I nomi arrivano da Cardmarket: inseriti come testo, mai come HTML.
+    var nomi = movEl.querySelectorAll('.mover-nome');
+    for (var i = 0; i < movers.length; i++) nomi[i].textContent = movers[i].nome;
   } else {
     movEl.style.display = 'none';
   }
+
+  // --- barra di ordinamento ---------------------------------------------
+  var ordEl = document.getElementById('ordina');
+  ordEl.style.display = 'flex';
+  ordEl.innerHTML = '<span class="etichetta-ordina">ordina</span>';
+  var box = document.createElement('span');
+  box.style.display = 'flex';
+  box.style.gap = '6px';
+  box.style.flexWrap = 'wrap';
+  // Cambiare ordinamento ridisegna solo la lista.
+  var scegliOrdine = function (id) {
+    stato.ordine = id;
+    scrivi(CHIAVE_ORDINE, id);
+    costruisciChip(box, ORDINAMENTI, id, scegliOrdine);
+    disegnaLista(ordinaCarte(carte, indice), indice);
+  };
+  costruisciChip(box, ORDINAMENTI, stato.ordine, scegliOrdine);
+  ordEl.appendChild(box);
+
+  // --- lista -------------------------------------------------------------
+  disegnaLista(ordinaCarte(carte, indice), indice);
+}
+
+function ordinaCarte(carte, indice) {
+  var arr = carte.slice();
+  if (stato.ordine === 'valore') {
+    arr.sort(function (a, b) {
+      return (valoreCarta(b, indice) - valoreCarta(a, indice));
+    });
+  } else if (stato.ordine === 'variazione') {
+    arr.sort(function (a, b) {
+      var va = variazioneCarta(serieCarta(indice, a));
+      var vb = variazioneCarta(serieCarta(indice, b));
+      return (vb ? vb.pct : -Infinity) - (va ? va.pct : -Infinity);
+    });
+  } else if (stato.ordine === 'nome') {
+    arr.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'it'); });
+  }
+  return arr;
+}
+
+function valoreCarta(c, indice) {
+  var p = c.ultimoPrezzo;
+  if (p == null) {
+    var serie = indice[c.link];
+    p = serie && serie.length ? serie[serie.length - 1].prezzo : 0;
+  }
+  return p * (c.quantita || 1);
+}
+
+// Le miniature sono data: URI dentro data.json, quindi `loading="lazy"` non
+// ha effetto (non c'è rete da rimandare) e il browser le decodifica tutte
+// insieme. Con l'observer la sorgente viene assegnata solo quando la riga si
+// avvicina allo schermo.
+var osservatore = 'IntersectionObserver' in window
+  ? new IntersectionObserver(function (voci, obs) {
+      voci.forEach(function (v) {
+        if (!v.isIntersecting) return;
+        var img = v.target;
+        if (img.dataset.src) { img.src = img.dataset.src; delete img.dataset.src; }
+        obs.unobserve(img);
+      });
+    }, { rootMargin: '400px 0px' })
+  : null;
+
+function disegnaLista(carte, indice) {
+  var lista = document.getElementById('lista');
+  lista.innerHTML = '';
+  var frag = document.createDocumentFragment();
 
   carte.forEach(function (c, idx) {
     var riga = document.createElement('div');
@@ -524,10 +899,11 @@ function render(dati) {
     if (c.immagine) {
       var img = document.createElement('img');
       img.className = 'miniatura';
-      img.src = c.immagine;
       img.alt = c.nome;
-      img.loading = 'lazy';
       img.referrerPolicy = 'no-referrer';
+      // Le prime righe sono già a schermo: caricale subito, il resto a scorrimento.
+      if (idx < 5 || !osservatore) img.src = c.immagine;
+      else { img.dataset.src = c.immagine; osservatore.observe(img); }
       riga.appendChild(img);
     } else {
       var seg = document.createElement('div');
@@ -551,6 +927,7 @@ function render(dati) {
       info.appendChild(badge);
     }
 
+    var serie = serieCarta(indice, c);
     var chip = document.createElement('div');
 
     if (c.ultimoPrezzo != null) {
@@ -563,6 +940,18 @@ function render(dati) {
       if (c.ultimeOfferte != null) parti.push(c.ultimeOfferte + ' off. IT');
       dett.textContent = parti.join(' · ');
       info.appendChild(dett);
+    } else if (serie.length) {
+      // Controllo fallito ma un prezzo storico c'è: mostralo come stimato
+      // invece di far sparire la carta dal conto.
+      var ultimo = serie[serie.length - 1];
+      chip.className = 'prezzo-chip stimato';
+      chip.textContent = euro(ultimo.prezzo);
+      var dettS = document.createElement('div');
+      dettS.className = 'dettagli';
+      dettS.textContent = (c.ultimoBloccato ? 'anti-bot' : 'errore') +
+        ' · ultimo noto ' + formattaData(ultimo.data);
+      info.appendChild(dettS);
+      riga.className += c.ultimoBloccato ? ' stato-bloccato' : ' stato-vuoto';
     } else if (c.ultimoBloccato) {
       riga.className += ' stato-bloccato';
       chip.className = 'prezzo-chip bloccato';
@@ -579,8 +968,6 @@ function render(dati) {
     colDx.className = 'col-dx';
     colDx.appendChild(chip);
 
-    var serie = serieCarta(storico, c);
-
     if (c.ultimoPrezzo != null) {
       var v = variazioneCarta(serie);
       if (v) {
@@ -591,8 +978,7 @@ function render(dati) {
         } else {
           var dir = v.pct > 0 ? 'su' : 'giu';
           vb.className = 'var-badge ' + dir;
-          vb.textContent = (v.pct > 0 ? '▲ +' : '▼ −') +
-            Math.abs(v.pct).toFixed(1).replace('.', ',') + '% · ' + v.etichetta;
+          vb.textContent = (v.pct > 0 ? '▲ +' : '▼ −') + pct(v.pct) + ' · ' + v.etichetta;
           if (Math.abs(v.pct) >= SOGLIA_FORTE) {
             vb.className += ' forte';
             riga.className += ' forte-' + dir;
@@ -603,26 +989,33 @@ function render(dati) {
     }
 
     riga.appendChild(colDx);
-    lista.appendChild(riga);
+    frag.appendChild(riga);
 
-    // grafico andamento al tocco (se c'è abbastanza storico)
+    // Grafico dell'andamento al tocco. L'SVG viene costruito alla prima
+    // apertura, non per tutte le carte in anticipo.
     if (serie.length >= 2) {
       var box = document.createElement('div');
       box.className = 'grafico-box';
-      box.innerHTML = disegnaSparkline(serie) +
-        '<div class="grafico-legenda">' +
-        '<span>' + formattaData(serie[0].data) + '</span>' +
-        '<span>min ' + euro(Math.min.apply(null, serie.map(function (r) { return r.prezzo; }))) +
-        ' · max ' + euro(Math.max.apply(null, serie.map(function (r) { return r.prezzo; }))) + '</span>' +
-        '<span>' + formattaData(serie[serie.length - 1].data) + '</span>' +
-        '</div>';
-      lista.appendChild(box);
+      frag.appendChild(box);
 
       riga.addEventListener('click', function () {
+        if (!box.dataset.pronto) {
+          var prezzi = serie.map(function (r) { return r.prezzo; });
+          box.innerHTML = disegnaSparkline(serie) +
+            '<div class="grafico-legenda">' +
+            '<span>' + formattaGiorno(serie[0].data) + '</span>' +
+            '<span>min ' + euro(Math.min.apply(null, prezzi)) +
+            ' · max ' + euro(Math.max.apply(null, prezzi)) + '</span>' +
+            '<span>' + formattaGiorno(serie[serie.length - 1].data) + '</span>' +
+            '</div>';
+          box.dataset.pronto = '1';
+        }
         box.classList.toggle('aperto');
       });
     }
   });
+
+  lista.appendChild(frag);
 }
 </script>
 </body>
