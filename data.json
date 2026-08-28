@@ -194,12 +194,12 @@
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/OP16/MonkeyDLuffy-OP16-015-V2",
       "nome": "luffy op16",
       "quantita": 1,
-      "ultimaData": 1787900629708,
-      "ultimaMedia3": null,
-      "ultimeOfferte": 0,
+      "ultimaData": 1787901091121,
+      "ultimaMedia3": 27.67,
+      "ultimeOfferte": 24,
       "ultimoBloccato": false,
-      "ultimoErrore": "timeout caricamento pagina (oltre 45s)",
-      "ultimoPrezzo": null
+      "ultimoErrore": null,
+      "ultimoPrezzo": 27
     },
     {
       "filtroInfo": null,
@@ -479,12 +479,12 @@
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos/MonkeyDLuffy-P-099-V1",
       "nome": "Luffy g5 promo",
       "quantita": 3,
-      "ultimaData": 1787900773343,
-      "ultimaMedia3": null,
-      "ultimeOfferte": 0,
+      "ultimaData": 1787901084041,
+      "ultimaMedia3": 34.67,
+      "ultimeOfferte": 42,
       "ultimoBloccato": false,
-      "ultimoErrore": "timeout caricamento pagina (oltre 45s)",
-      "ultimoPrezzo": null
+      "ultimoErrore": null,
+      "ultimoPrezzo": 34
     },
     {
       "filtroInfo": null,
@@ -8764,7 +8764,23 @@
       "nOfferte": 20,
       "nome": "Luffy Promo 1",
       "prezzo": 29.6
+    },
+    {
+      "data": 1787901084041,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos/MonkeyDLuffy-P-099-V1",
+      "media3": 34.67,
+      "nOfferte": 42,
+      "nome": "Luffy g5 promo",
+      "prezzo": 34
+    },
+    {
+      "data": 1787901091121,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/OP16/MonkeyDLuffy-OP16-015-V2",
+      "media3": 27.67,
+      "nOfferte": 24,
+      "nome": "luffy op16",
+      "prezzo": 27
     }
   ],
-  "aggiornatoIl": 1787901083126
+  "aggiornatoIl": 1787901091258
 }
