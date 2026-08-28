@@ -119,12 +119,12 @@
       "immagineUrl": "https://product-images.s3.cardmarket.com/1621/UP-JP/792764/792764.jpg",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-OP07-109",
       "nome": "luffy egghead opd24",
-      "ultimaData": 1787900566399,
-      "ultimaMedia3": null,
-      "ultimeOfferte": 0,
+      "ultimaData": 1787901079064,
+      "ultimaMedia3": 62.83,
+      "ultimeOfferte": 28,
       "ultimoBloccato": false,
-      "ultimoErrore": "timeout caricamento pagina (oltre 45s)",
-      "ultimoPrezzo": null
+      "ultimoErrore": null,
+      "ultimoPrezzo": 50
     },
     {
       "filtroInfo": null,
@@ -8732,7 +8732,15 @@
       "nOfferte": 18,
       "nome": "luffy bcg jp",
       "prezzo": 70
+    },
+    {
+      "data": 1787901079064,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Unnumbered-Promos-Japanese/MonkeyDLuffy-OP07-109",
+      "media3": 62.83,
+      "nOfferte": 28,
+      "nome": "luffy egghead opd24",
+      "prezzo": 50
     }
   ],
-  "aggiornatoIl": 1787901048631
+  "aggiornatoIl": 1787901079153
 }
