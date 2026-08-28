@@ -299,12 +299,12 @@
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Promo-Products/1st-Anniversary-Set-English-Version",
       "nome": "1st anniversary",
       "quantita": 1,
-      "ultimaData": 1787900699896,
-      "ultimaMedia3": 5599.67,
-      "ultimeOfferte": 8,
+      "ultimaData": 1787901181914,
+      "ultimaMedia3": 9116.67,
+      "ultimeOfferte": 7,
       "ultimoBloccato": false,
       "ultimoErrore": null,
-      "ultimoPrezzo": 3999
+      "ultimoPrezzo": 5800
     },
     {
       "filtroInfo": null,
@@ -8780,7 +8780,15 @@
       "nOfferte": 24,
       "nome": "luffy op16",
       "prezzo": 27
+    },
+    {
+      "data": 1787901181914,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Promo-Products/1st-Anniversary-Set-English-Version",
+      "media3": 9116.67,
+      "nOfferte": 7,
+      "nome": "1st anniversary",
+      "prezzo": 5800
     }
   ],
-  "aggiornatoIl": 1787901101958
+  "aggiornatoIl": 1787901182015
 }
