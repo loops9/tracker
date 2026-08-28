@@ -105,12 +105,12 @@
       "immagineUrl": "https://product-images.s3.cardmarket.com/1621/P-JP/738956/738956.png",
       "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos-Japanese/MonkeyDLuffy-P-041-V4",
       "nome": "luffy bcg jp",
-      "ultimaData": 1787900560562,
-      "ultimaMedia3": null,
-      "ultimeOfferte": 0,
+      "ultimaData": 1787901048505,
+      "ultimaMedia3": 73,
+      "ultimeOfferte": 18,
       "ultimoBloccato": false,
-      "ultimoErrore": "timeout caricamento pagina (oltre 45s)",
-      "ultimoPrezzo": null
+      "ultimoErrore": null,
+      "ultimoPrezzo": 70
     },
     {
       "filtroInfo": null,
@@ -8724,7 +8724,15 @@
       "nOfferte": 8,
       "nome": "Zoro haki",
       "prezzo": 349
+    },
+    {
+      "data": 1787901048505,
+      "link": "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos-Japanese/MonkeyDLuffy-P-041-V4",
+      "media3": 73,
+      "nOfferte": 18,
+      "nome": "luffy bcg jp",
+      "prezzo": 70
     }
   ],
-  "aggiornatoIl": 1787900805418
+  "aggiornatoIl": 1787901048631
 }
