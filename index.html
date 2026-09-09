@@ -7,345 +7,323 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prezzi Carte">
-<meta name="theme-color" content="#10152a">
+<meta name="theme-color" content="#0b1020">
 <title>Cardmarket Ledger</title>
 <style>
   :root {
-    --bg: #10152a;
-    --surface: #1b2340;
-    --surface-2: #232b4d;
-    --gold: #caa15c;
-    --text: #eae6d8;
-    --muted: #7d8296;
-    --good: #5fae9d;
-    --warn: #c9705c;
+    --inchiostro: #0b1020;
+    --pergamena: #141b31;
+    --pergamena-alta: #1c2440;
+    --oro: #c9a35f;
+    --oro-chiaro: #e5c584;
+    --testo: #ece7da;
+    --tenue: #828ca6;
+    --sale: #5fae9d;
+    --scende: #cd7159;
+    --filo: rgba(201, 163, 95, 0.22);
+    --bordo: rgba(255, 255, 255, 0.07);
+    --larghezza-tessera: 172px;
   }
 
   * { box-sizing: border-box; }
 
+  html { -webkit-text-size-adjust: 100%; }
+
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, "Iowan Old Style", Georgia, serif;
-    min-height: 100vh;
-    padding-bottom: 40px;
+    background: var(--inchiostro);
+    color: var(--testo);
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-size: 16px;
+    line-height: 1.5;
+    padding-bottom: 60px;
   }
 
-  header {
-    padding: max(28px, env(safe-area-inset-top)) 20px 18px;
-    border-bottom: 1px solid rgba(202, 161, 92, 0.25);
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+  .sans { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  .guscio { max-width: 1220px; margin: 0 auto; padding: 0 22px; }
+
+  :focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
+
+  /* ------------------------------------------------------------ testata */
+
+  .testata {
+    border-bottom: 1px solid var(--filo);
+    padding: max(26px, env(safe-area-inset-top)) 0 22px;
+    margin-bottom: 26px;
   }
 
-  h1 {
-    font-size: 22px;
-    margin: 0 0 4px;
-    letter-spacing: 0.02em;
-    font-weight: 600;
+  .testata-riga {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
   }
 
-  .sottotitolo {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 11px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+  h1 { font-size: 21px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+
+  .aggiornato {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 12.5px; color: var(--tenue);
+  }
+  .aggiornato .cache { color: var(--oro); }
+
+  .pannello-totale { display: none; grid-template-columns: minmax(240px, 320px) 1fr; gap: 34px; align-items: start; }
+
+  .etichetta { font-size: 14px; color: var(--oro); margin-bottom: 6px; }
+
+  .valore { font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.015em; }
+
+  .delta { margin-top: 10px; font-size: 15px; }
+  .delta.su { color: var(--sale); }
+  .delta.giu { color: var(--scende); }
+  .delta.pari { color: var(--tenue); }
+
+  .nota {
+    margin-top: 8px; font-size: 12.5px; color: var(--tenue); max-width: 40ch;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
-  .sottotitolo .cache { color: var(--gold); }
+  .chip-fila { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  #totale {
-    display: none;
-    margin-top: 14px;
-    padding: 14px 16px;
-    background: var(--surface-2);
-    border-radius: 8px;
-    border-left: 3px solid var(--gold);
+  .chip {
+    background: none; color: var(--tenue); cursor: pointer;
+    border: 1px solid var(--bordo); border-radius: 2px;
+    padding: 4px 11px; font-size: 12.5px;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .chip:hover { color: var(--testo); }
+  .chip.attivo { color: var(--inchiostro); background: var(--oro); border-color: var(--oro); }
+
+  #graficoTotale { margin-top: 12px; }
+  #graficoTotale svg { display: block; width: 100%; height: 132px; }
+
+  .legenda {
+    display: flex; justify-content: space-between; gap: 10px; margin-top: 6px;
+    font-size: 12px; color: var(--tenue);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
-  #totale .etichetta {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+  /* ------------------------------------------- movimenti importanti */
+
+  .movimenti { display: none; margin-bottom: 26px; }
+
+  .movimenti-titolo { font-size: 15px; color: var(--oro); margin-bottom: 12px; }
+
+  .movimenti-fila { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+
+  .mov {
+    display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+    background: var(--pergamena); border: 1px solid var(--bordo);
+    border-left: 2px solid var(--oro); border-radius: 3px;
+    padding: 8px 14px 8px 8px; cursor: pointer; text-align: left;
+    color: var(--testo); font-family: inherit; font-size: 14px;
+  }
+  .mov:hover { background: var(--pergamena-alta); }
+  .mov img { width: 32px; height: 45px; object-fit: cover; border-radius: 2px; background: var(--pergamena-alta); }
+  .mov .mov-nome { display: block; max-width: 20ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mov .mov-pct { display: block; font-size: 13px;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .mov.su { border-left-color: var(--sale); }
+  .mov.giu { border-left-color: var(--scende); }
+
+  .su { color: var(--sale); }
+  .giu { color: var(--scende); }
+  .pari { color: var(--tenue); }
+
+  /* ------------------------------------------------------- ordinamento */
+
+  .barra {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .barra .conteggio { font-size: 13px; color: var(--tenue);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  /* ------------------------------------------------------------ griglia */
+
+  .griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--larghezza-tessera), 1fr));
+    gap: 30px 18px;
   }
 
-  #totale .valore {
-    font-size: 26px;
-    font-weight: 700;
-    margin-top: 2px;
+  .tessera {
+    display: block; width: 100%; padding: 0; text-align: left;
+    background: none; border: none; color: inherit; font: inherit; cursor: pointer;
   }
 
-  #totale .delta {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 12px;
-    margin-top: 2px;
+  .cornice {
+    position: relative; background: var(--pergamena);
+    border: 1px solid var(--bordo); border-radius: 3px;
+    padding: 9px 9px 0; overflow: hidden;
+  }
+  .tessera:hover .cornice { border-color: rgba(201, 163, 95, 0.45); }
+
+  .cornice img, .cornice .segnaposto {
+    display: block; width: 100%; aspect-ratio: 5 / 7;
+    border-radius: 2px; background: var(--pergamena-alta);
+    object-fit: contain;
+  }
+  .cornice .segnaposto {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tenue); font-size: 26px;
+  }
+  .tessera.spenta .cornice img { opacity: 0.42; filter: saturate(0.4); }
+
+  .cornice .spark { display: block; width: calc(100% + 18px); height: 34px; margin: 8px 0 0 -9px; }
+  .cornice .spark-vuoto { height: 34px; margin-top: 8px; }
+
+  .segno {
+    position: absolute; top: 15px; border-radius: 2px; padding: 1px 7px;
+    font-size: 11.5px; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .segno.grado { left: 15px; background: rgba(201, 163, 95, 0.92); color: #16110a; font-weight: 600; }
+  .segno.qta { right: 15px; background: rgba(11, 16, 32, 0.86); border: 1px solid var(--filo); color: var(--oro-chiaro); }
+  .segno.stato { left: 15px; background: rgba(11, 16, 32, 0.9); border: 1px solid var(--bordo); color: var(--tenue); }
+
+  .piede { padding: 10px 2px 0; }
+  .piede .nome { font-size: 14.5px; line-height: 1.25; min-height: 2.5em; }
+  .piede .riga-prezzo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 5px; }
+  .piede .prezzo { font-size: 21px; font-weight: 600; }
+  .piede .prezzo.stimato { color: var(--tenue); }
+  .piede .var { font-size: 13px; white-space: nowrap;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  .tessera.forte .cornice { border-color: rgba(201, 163, 95, 0.6); box-shadow: 0 0 0 1px rgba(201, 163, 95, 0.16); }
+
+  @keyframes lampo {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(201, 163, 95, 0); }
+    30% { box-shadow: 0 0 0 3px rgba(201, 163, 95, 0.55); }
+  }
+  .tessera.lampeggia .cornice { animation: lampo 1.1s ease-in-out 2; }
+
+  /* ---------------------------------------------------- scheda grande */
+
+  .velo {
+    position: fixed; inset: 0; z-index: 20;
+    background: rgba(5, 8, 18, 0.82);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 20px; overflow-y: auto;
+  }
+  .velo[hidden] { display: none; }
+
+  .scheda {
+    position: relative; width: 100%; max-width: 880px;
+    background: var(--pergamena); border: 1px solid var(--filo); border-radius: 4px;
+    padding: 30px 32px 32px;
+    display: grid; grid-template-columns: 250px 1fr; gap: 32px; align-items: start;
   }
 
-  .delta.su { color: var(--good); }
-  .delta.giu { color: var(--warn); }
-  .delta.pari { color: var(--muted); }
+  .scheda-img { width: 100%; border-radius: 4px; display: block;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5); background: var(--pergamena-alta); }
 
-  .nota-stima {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 4px;
+  .scheda h2 { font-size: 26px; font-weight: 600; margin: 0 0 6px; }
+  .scheda .prezzo-grande { font-size: 44px; font-weight: 600; line-height: 1; margin: 20px 0 8px; }
+  .scheda .sotto { font-size: 14px; }
+
+  .fatti { display: flex; flex-wrap: wrap; gap: 22px 30px; margin: 22px 0 24px; }
+  .fatti div { font-size: 12.5px; color: var(--tenue);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .fatti b { display: block; margin-top: 2px; font-size: 17px; font-weight: 600; color: var(--testo);
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
+
+  .scheda .grafico-grande svg { display: block; width: 100%; height: 140px; }
+
+  .scheda .apri {
+    display: inline-block; margin-top: 20px; font-size: 13.5px;
+    color: var(--oro-chiaro); text-decoration: none;
+    border-bottom: 1px solid var(--filo); padding-bottom: 2px;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .scheda .apri:hover { border-color: var(--oro); }
+
+  .chiudi {
+    position: absolute; top: 12px; right: 14px;
+    background: none; border: none; color: var(--tenue);
+    font-size: 26px; line-height: 1; cursor: pointer; padding: 4px 8px;
+  }
+  .chiudi:hover { color: var(--testo); }
+
+  /* -------------------------------------------------- stati e attese */
+
+  .sk { display: none; }
+  .sk .cornice { height: 268px; }
+  @keyframes respiro { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.6; } }
+  .sk .cornice { animation: respiro 1.6s ease-in-out infinite; }
+
+  .avviso {
+    display: none; margin: 40px 0; padding: 22px;
+    border: 1px dashed var(--bordo); border-radius: 3px;
+    color: var(--tenue); text-align: center; font-size: 15px;
   }
 
-  #lista { padding: 10px 14px 0; }
-
-  .riga {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--surface);
-    border-left: 3px solid var(--gold);
-    border-radius: 6px;
-    padding: 10px 14px 10px 10px;
-    margin-bottom: 10px;
-    cursor: pointer;
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
   }
 
-  .riga.stato-vuoto { border-left-color: var(--muted); }
-  .riga.stato-bloccato { border-left-color: var(--warn); }
-
-  .miniatura {
-    width: 44px;
-    height: 62px;
-    border-radius: 4px;
-    object-fit: cover;
-    background: var(--surface-2);
-    flex-shrink: 0;
+  @media (max-width: 900px) {
+    .pannello-totale { grid-template-columns: 1fr; gap: 24px; }
+    .scheda { grid-template-columns: 1fr; gap: 24px; padding: 26px 20px 28px; }
+    .scheda-img { max-width: 240px; margin: 0 auto; }
   }
 
-  .miniatura.vuota {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    font-size: 18px;
+  @media (max-width: 420px) {
+    .guscio { padding: 0 14px; }
+    .griglia { grid-template-columns: 1fr 1fr; gap: 22px 12px; }
+    .valore { font-size: 36px; }
+    .velo { padding: 0; }
+    .scheda { border: none; border-radius: 0; min-height: 100%; }
   }
-
-  .info { flex: 1; min-width: 0; }
-
-  .nome {
-    font-size: 15px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .badge {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    color: var(--gold);
-    letter-spacing: 0.05em;
-  }
-
-  .dettagli {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 2px;
-  }
-
-  .prezzo-chip {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--bg);
-    background: var(--gold);
-    border-radius: 999px;
-    padding: 8px 14px;
-    white-space: nowrap;
-  }
-
-  .prezzo-chip.vuoto {
-    background: transparent;
-    border: 1px solid var(--muted);
-    color: var(--muted);
-    font-weight: 400;
-  }
-
-  .prezzo-chip.bloccato {
-    background: transparent;
-    border: 1px solid var(--warn);
-    color: var(--warn);
-    font-size: 11px;
-  }
-
-  .prezzo-chip.stimato {
-    background: transparent;
-    border: 1px dashed var(--gold);
-    color: var(--gold);
-  }
-
-  .col-dx {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  .var-badge {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    letter-spacing: 0.03em;
-  }
-
-  .var-badge.su { color: var(--good); border: 1px solid rgba(95, 174, 157, 0.5); }
-  .var-badge.giu { color: var(--warn); border: 1px solid rgba(201, 112, 92, 0.5); }
-  .var-badge.pari { color: var(--muted); border: 1px solid rgba(125, 130, 150, 0.4); }
-
-  .grafico-box {
-    display: none;
-    background: var(--surface);
-    border-radius: 0 0 6px 6px;
-    margin: -10px 0 10px;
-    padding: 6px 14px 12px;
-  }
-
-  .grafico-box.aperto { display: block; }
-
-  .grafico-box svg { width: 100%; height: 90px; display: block; }
-
-  .grafico-legenda {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    color: var(--muted);
-    display: flex;
-    justify-content: space-between;
-    margin-top: 4px;
-  }
-
-  #vuoto, #errore {
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 14px;
-    display: none;
-  }
-
-  /* grafico del valore totale nel tempo */
-  #graficoTotale { margin-top: 14px; display: none; }
-  #graficoTotale svg { width: 100%; height: 130px; display: block; }
-  #graficoTotaleLeg {
-    display: flex;
-    justify-content: space-between;
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 4px;
-  }
-
-  /* selettore periodo del grafico totale */
-  #periodi { display: none; gap: 6px; margin-top: 12px; }
-  .chip-periodo {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    background: transparent;
-    border: 1px solid rgba(125, 130, 150, 0.4);
-    border-radius: 999px;
-    padding: 5px 12px;
-    cursor: pointer;
-  }
-  .chip-periodo.attivo { color: var(--bg); background: var(--gold); border-color: var(--gold); }
-
-  /* barra di ordinamento della lista */
-  #ordina { display: none; gap: 6px; padding: 14px 14px 0; align-items: center; flex-wrap: wrap; }
-  #ordina .etichetta-ordina {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: var(--muted);
-    margin-right: 2px;
-  }
-
-  /* movimenti importanti */
-  #movimenti { padding: 14px 14px 0; display: none; }
-  .movimenti-titolo {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: var(--muted);
-    margin: 0 4px 8px;
-  }
-  .mover {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: 6px;
-    margin-bottom: 6px;
-    background: var(--surface);
-    border-left: 3px solid var(--muted);
-  }
-  .mover.su { border-left-color: var(--good); }
-  .mover.giu { border-left-color: var(--warn); }
-  .mover-nome { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mover-pct {
-    font-family: ui-monospace, "SF Mono", "IBM Plex Mono", monospace;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .mover-pct.su { color: var(--good); }
-  .mover-pct.giu { color: var(--warn); }
-
-  /* carta con movimento forte: bagliore + badge pieno */
-  .riga.forte-su { box-shadow: 0 0 0 1px rgba(95, 174, 157, 0.55), 0 0 16px rgba(95, 174, 157, 0.22); border-left-color: var(--good); }
-  .riga.forte-giu { box-shadow: 0 0 0 1px rgba(201, 112, 92, 0.55), 0 0 16px rgba(201, 112, 92, 0.22); border-left-color: var(--warn); }
-  .var-badge.forte { font-weight: 700; color: #14182b; }
-  .var-badge.forte.su { background: var(--good); border-color: var(--good); }
-  .var-badge.forte.giu { background: var(--warn); border-color: var(--warn); }
-
-  /* scheletro mostrato al primo avvio, finché data.json non è arrivato */
-  #scheletro { padding: 10px 14px 0; display: none; }
-  .sk-riga {
-    height: 82px;
-    border-radius: 6px;
-    background: var(--surface);
-    border-left: 3px solid rgba(202, 161, 92, 0.3);
-    margin-bottom: 10px;
-    opacity: 0.5;
-    animation: pulsa 1.4s ease-in-out infinite;
-  }
-  @keyframes pulsa { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.6; } }
 </style>
 </head>
 <body>
-  <header>
-    <h1>Cardmarket Ledger</h1>
-    <div class="sottotitolo" id="aggiornato">caricamento...</div>
-    <div id="totale">
-      <div class="etichetta">Valore collezione (minimi IT)</div>
-      <div class="valore" id="totaleValore"></div>
-      <div class="delta" id="totaleDelta"></div>
-      <div class="nota-stima" id="notaStima"></div>
-      <div id="periodi"></div>
-      <div id="graficoTotale"></div>
-      <div id="graficoTotaleLeg"></div>
+
+<div class="guscio">
+
+  <header class="testata">
+    <div class="testata-riga">
+      <h1>Cardmarket Ledger</h1>
+      <div class="aggiornato" id="aggiornato">caricamento…</div>
+    </div>
+
+    <div class="pannello-totale" id="totale">
+      <div>
+        <div class="etichetta">Valore della collezione</div>
+        <div class="valore num" id="totaleValore"></div>
+        <div class="delta" id="totaleDelta"></div>
+        <div class="nota" id="notaStima"></div>
+      </div>
+      <div>
+        <div class="chip-fila" id="periodi"></div>
+        <div id="graficoTotale"></div>
+        <div class="legenda" id="graficoTotaleLeg"></div>
+      </div>
     </div>
   </header>
 
-  <div id="movimenti"></div>
-  <div id="ordina"></div>
-  <div id="lista"></div>
-  <div id="scheletro"></div>
-  <div id="vuoto">Nessuna carta ancora in lista.<br>Aggiungila dall'estensione sul PC.</div>
-  <div id="errore">Impossibile caricare data.json.<br>Fai almeno una sincronizzazione dall'estensione.</div>
+  <section class="movimenti" id="movimenti"></section>
+
+  <div class="barra">
+    <div class="conteggio" id="conteggio"></div>
+    <div class="chip-fila" id="ordina"></div>
+  </div>
+
+  <div class="griglia sk" id="scheletro"></div>
+  <div class="griglia" id="griglia"></div>
+
+  <div class="avviso" id="vuoto">
+    Nessuna carta in elenco. Aggiungine una dall'estensione sul PC e sincronizza.
+  </div>
+  <div class="avviso" id="errore">
+    Il file data.json non si carica. Lancia una sincronizzazione dall'estensione.
+  </div>
+
+</div>
+
+<div class="velo" id="velo" hidden>
+  <div class="scheda" id="scheda" role="dialog" aria-modal="true" aria-label="Dettaglio carta"></div>
+</div>
 
 <script>
 // ---------------------------------------------------------------------------
@@ -359,6 +337,11 @@ var GAP_SESSIONE = 30 * 60 * 1000;
 
 // Soglia (in %) oltre la quale un movimento è considerato "importante".
 var SOGLIA_FORTE = 15;
+
+// Le immagini in data.json sono salvate a 160x224 px: è il tetto di nitidezza.
+// Mettendo true, la pagina prova a caricare l'immagine grande da immagineUrl
+// (S3 di Cardmarket) e, se la richiesta fallisce, resta quella incorporata.
+var IMMAGINI_HD = false;
 
 var CHIAVE_CACHE = 'ledger:data';
 var CHIAVE_ORDINE = 'ledger:ordine';
@@ -376,12 +359,12 @@ var ORDINAMENTI = [
   { id: 'nome', etichetta: 'nome' }
 ];
 
-// Stato di rendering condiviso fra i controlli (periodo, ordinamento).
 var stato = {
   dati: null,
   indice: null,
   periodo: 'tutto',
-  ordine: leggi(CHIAVE_ORDINE) || 'lista'
+  ordine: leggi(CHIAVE_ORDINE) || 'lista',
+  puntiTotale: []
 };
 
 // ---------------------------------------------------------------------------
@@ -411,8 +394,6 @@ fetch('data.json', { cache: 'no-cache' })
   })
   .then(function (testo) {
     var dati = JSON.parse(testo);
-    // Se il contenuto è identico a quello già disegnato dalla cache, evita
-    // un secondo render (e il relativo sfarfallio).
     if (!mostrataCache || testo !== testoCache) {
       scrivi(CHIAVE_CACHE, testo);
       render(dati, false);
@@ -422,7 +403,6 @@ fetch('data.json', { cache: 'no-cache' })
   })
   .catch(function () {
     if (mostrataCache) {
-      // I dati a schermo restano validi: segnala solo che sono quelli locali.
       var el = document.getElementById('aggiornato');
       el.innerHTML = el.textContent + ' <span class="cache">· offline</span>';
     } else {
@@ -432,13 +412,15 @@ fetch('data.json', { cache: 'no-cache' })
     }
   });
 
-// Con il service worker la pagina si apre anche senza rete e non viene
-// riscaricata a ogni avvio dalla schermata Home.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('sw.js').catch(function () { /* opzionale */ });
   });
 }
+
+// ---------------------------------------------------------------------------
+// Memoria locale e attese
+// ---------------------------------------------------------------------------
 
 function leggi(chiave) {
   try { return localStorage.getItem(chiave); } catch (e) { return null; }
@@ -453,12 +435,16 @@ function scrivi(chiave, valore) {
 
 function mostraScheletro() {
   var sk = document.getElementById('scheletro');
-  sk.innerHTML = new Array(7).join('<div class="sk-riga"></div>');
-  sk.style.display = 'block';
+  var html = '';
+  for (var i = 0; i < 12; i++) html += '<div class="tessera"><div class="cornice"></div></div>';
+  sk.innerHTML = html;
+  sk.style.display = 'grid';
 }
 
 function nascondiScheletro() {
-  document.getElementById('scheletro').style.display = 'none';
+  var sk = document.getElementById('scheletro');
+  sk.style.display = 'none';
+  sk.innerHTML = '';
 }
 
 // ---------------------------------------------------------------------------
@@ -479,14 +465,20 @@ function formattaGiorno(ts) {
 
 function euro(v) { return v.toFixed(2).replace('.', ',') + ' €'; }
 
+// Nelle tessere lo spazio è poco: sopra i 100 € i centesimi non servono.
+function euroCorto(v) {
+  if (Math.abs(v) >= 100) return Math.round(v).toLocaleString('it-IT') + ' €';
+  return euro(v);
+}
+
 function pct(v) { return Math.abs(v).toFixed(1).replace('.', ',') + '%'; }
+
+function testo(el, t) { el.textContent = t; return el; }
 
 // ---------------------------------------------------------------------------
 // Indicizzazione dello storico
 // ---------------------------------------------------------------------------
 
-// Raggruppa lo storico per link una volta sola, invece di rifiltrare l'intero
-// array a ogni carta (era O(carte × storico) ripetuto tre volte per render).
 function indicizza(storico) {
   var per = {};
   for (var i = 0; i < storico.length; i++) {
@@ -515,9 +507,8 @@ function prezzoAl(serie, t) {
   return res;
 }
 
-// Istanti di fine di ogni controllo. Prendendo l'ultimo timestamp del gruppo
-// il totale include tutte le carte lette in quel giro: senza questo il grafico
-// disegnava la somma parziale mentre lo scraping era ancora in corso.
+// Istanti di fine di ogni controllo: prendendo l'ultimo timestamp del gruppo
+// il totale include tutte le carte lette in quel giro.
 function fineControlli(storico) {
   var ts = [];
   for (var i = 0; i < storico.length; i++) ts.push(storico[i].data);
@@ -534,9 +525,6 @@ function fineControlli(storico) {
 // Valore della collezione
 // ---------------------------------------------------------------------------
 
-// Solo le carte presenti in `carte`: iterando sullo storico si continuavano a
-// sommare le carte tolte dalla collezione (erano 1.183,90 € di scarto fra il
-// totale in alto e l'ultimo punto del grafico).
 function valoreAl(carte, indice, t) {
   var tot = 0, contate = 0;
   for (var i = 0; i < carte.length; i++) {
@@ -549,9 +537,8 @@ function valoreAl(carte, indice, t) {
   return { totale: tot, contate: contate };
 }
 
-// Valore corrente. Una carta il cui ultimo controllo è fallito (anti-bot o
-// errore) non sparisce dal totale: vale il suo ultimo prezzo noto, segnalato
-// come stimato.
+// Una carta il cui ultimo controllo è fallito non sparisce dal totale: vale il
+// suo ultimo prezzo noto, segnalato come stimato.
 function valoreCorrente(carte, indice) {
   var tot = 0, contate = 0, stimate = 0, mancanti = 0;
   carte.forEach(function (c) {
@@ -578,9 +565,7 @@ function serieTotale(carte, indice, storico) {
 }
 
 // Confronto con il controllo precedente, contando solo le carte presenti in
-// entrambi: altrimenti una carta appena aggiunta al tracker viene letta come
-// un guadagno di mercato (l'ultimo controllo mostrava +900 € che erano
-// semplicemente una carta nuova).
+// entrambi: una carta appena aggiunta non è un guadagno di mercato.
 function confrontoUltimi(carte, indice, storico) {
   var fini = fineControlli(storico);
   if (fini.length < 2) return null;
@@ -603,9 +588,8 @@ function confrontoUltimi(carte, indice, storico) {
   return { delta: delta, nuove: nuove, valNuove: valNuove, data: tPrec };
 }
 
-// Variazione percentuale dell'ultimo prezzo rispetto a ~7 giorni prima.
-// Se lo storico è più corto, confronta con il punto più vecchio disponibile
-// e l'etichetta riporta i giorni effettivi (es. "3g").
+// Variazione dell'ultimo prezzo rispetto a ~7 giorni prima. Con storico più
+// corto confronta con il punto più vecchio e l'etichetta riporta i giorni veri.
 function variazioneCarta(serie) {
   if (serie.length < 2) return null;
   var ultimo = serie[serie.length - 1];
@@ -617,17 +601,31 @@ function variazioneCarta(serie) {
     else break;
   }
 
-  var etichetta = '7g';
+  var etichetta = '7 giorni';
   if (!rif || rif === ultimo) {
     rif = serie[0];
     if (rif === ultimo) rif = serie[serie.length - 2];
     var giorni = Math.max(1, Math.round((ultimo.data - rif.data) / 86400000));
-    etichetta = giorni + 'g';
+    etichetta = giorni === 1 ? '1 giorno' : giorni + ' giorni';
   }
 
   if (!rif || !rif.prezzo) return null;
-  var p = ((ultimo.prezzo - rif.prezzo) / rif.prezzo) * 100;
-  return { pct: p, etichetta: etichetta };
+  return {
+    pct: ((ultimo.prezzo - rif.prezzo) / rif.prezzo) * 100,
+    etichetta: etichetta,
+    da: rif.data
+  };
+}
+
+function classeVar(v) {
+  if (!v || Math.abs(v.pct) < 0.05) return 'pari';
+  return v.pct > 0 ? 'su' : 'giu';
+}
+
+function testoVar(v) {
+  if (!v) return '';
+  if (Math.abs(v.pct) < 0.05) return 'stabile';
+  return (v.pct > 0 ? '+' : '−') + pct(v.pct);
 }
 
 // ---------------------------------------------------------------------------
@@ -635,9 +633,8 @@ function variazioneCarta(serie) {
 // ---------------------------------------------------------------------------
 
 // X proporzionale al tempo reale, non all'indice del punto: i controlli sono
-// distanziati da poche ore a sei giorni, e spaziarli in modo uniforme
-// falsava la forma della curva.
-function disegnaGrafico(punti, W, H, PAD) {
+// distanziati da poche ore a sei giorni.
+function disegnaGrafico(punti, W, H, PAD, colore, punto) {
   var valori = punti.map(function (p) { return p.totale; });
   var min = Math.min.apply(null, valori);
   var max = Math.max.apply(null, valori);
@@ -655,18 +652,26 @@ function disegnaGrafico(punti, W, H, PAD) {
 
   var linea = pts.join(' ');
   var area = PAD + ',' + (H - PAD) + ' ' + linea + ' ' + (W - PAD) + ',' + (H - PAD);
+  var ultimo = pts[pts.length - 1].split(',');
 
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
-    '<polygon points="' + area + '" fill="rgba(202,161,92,0.15)"/>' +
-    '<polyline points="' + linea + '" fill="none" stroke="#caa15c" stroke-width="2" ' +
-    'stroke-linejoin="round" stroke-linecap="round"/>' +
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+    '<polygon points="' + area + '" fill="' + colore + '" opacity="0.12"/>' +
+    '<polyline points="' + linea + '" fill="none" stroke="' + colore + '" stroke-width="2" ' +
+    'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+    (punto ? '<circle cx="' + ultimo[0] + '" cy="' + ultimo[1] + '" r="2.6" fill="' + colore + '"/>' : '') +
     '</svg>';
 }
 
-function disegnaSparkline(serie) {
+function coloreVar(v) {
+  if (!v || Math.abs(v.pct) < 0.05) return '#828ca6';
+  return v.pct > 0 ? '#5fae9d' : '#cd7159';
+}
+
+function graficoCarta(serie, W, H, PAD, colore) {
+  if (serie.length < 2) return '';
   return disegnaGrafico(serie.map(function (r) {
     return { data: r.data, totale: r.prezzo };
-  }), 320, 90, 6);
+  }), W, H, PAD, colore, true);
 }
 
 function filtraPeriodo(punti, giorni) {
@@ -681,16 +686,14 @@ function aggiornaGraficoTotale() {
   var gtLeg = document.getElementById('graficoTotaleLeg');
   var punti = filtraPeriodo(stato.puntiTotale, periodoAttivo().giorni);
 
-  if (punti.length < 2) { gtEl.style.display = 'none'; gtLeg.innerHTML = ''; return; }
+  if (punti.length < 2) { gtEl.innerHTML = ''; gtLeg.innerHTML = ''; return; }
 
-  gtEl.style.display = 'block';
-  gtEl.innerHTML = disegnaGrafico(punti, 320, 130, 8);
+  gtEl.innerHTML = disegnaGrafico(punti, 520, 132, 8, '#c9a35f', false);
 
   var valori = punti.map(function (p) { return p.totale; });
   gtLeg.innerHTML =
     '<span>' + formattaGiorno(punti[0].data) + '</span>' +
-    '<span>min ' + euro(Math.min.apply(null, valori)) +
-    ' · max ' + euro(Math.max.apply(null, valori)) + '</span>' +
+    '<span>da ' + euro(Math.min.apply(null, valori)) + ' a ' + euro(Math.max.apply(null, valori)) + '</span>' +
     '<span>' + formattaGiorno(punti[punti.length - 1].data) + '</span>';
 }
 
@@ -705,7 +708,7 @@ function costruisciChip(contenitore, voci, attivo, onScelta) {
   contenitore.innerHTML = '';
   voci.forEach(function (v) {
     var b = document.createElement('button');
-    b.className = 'chip-periodo' + (v.id === attivo ? ' attivo' : '');
+    b.className = 'chip' + (v.id === attivo ? ' attivo' : '');
     b.textContent = v.etichetta;
     b.addEventListener('click', function () { onScelta(v.id); });
     contenitore.appendChild(b);
@@ -745,7 +748,7 @@ function render(dati, daCache) {
   stato.puntiTotale = serieTotale(carte, indice, storico);
 
   if (val.contate > 0) {
-    document.getElementById('totale').style.display = 'block';
+    document.getElementById('totale').style.display = 'grid';
     document.getElementById('totaleValore').textContent = euro(val.totale);
 
     var deltaEl = document.getElementById('totaleDelta');
@@ -755,7 +758,7 @@ function render(dati, daCache) {
     if (conf) {
       var diff = conf.delta;
       if (Math.abs(diff) < 0.005) {
-        deltaEl.textContent = 'mercato invariato dal ' + formattaGiorno(conf.data);
+        deltaEl.textContent = 'mercato invariato dal controllo del ' + formattaGiorno(conf.data);
         deltaEl.className = 'delta pari';
       } else {
         deltaEl.textContent = (diff > 0 ? '▲ +' : '▼ −') + euro(Math.abs(diff)) +
@@ -771,15 +774,14 @@ function render(dati, daCache) {
       deltaEl.className = 'delta pari';
     }
 
-    if (val.stimate) note.push(val.stimate + (val.stimate === 1 ? ' carta stimata' : ' carte stimate') + ' (ultimo prezzo noto)');
-    if (val.mancanti) note.push(val.mancanti + (val.mancanti === 1 ? ' carta esclusa' : ' carte escluse') + ' (mai rilevata)');
+    if (val.stimate) note.push(val.stimate + (val.stimate === 1 ? ' carta stimata' : ' carte stimate') + ' sull\'ultimo prezzo noto');
+    if (val.mancanti) note.push(val.mancanti + (val.mancanti === 1 ? ' carta esclusa' : ' carte escluse') + ', mai rilevata');
     document.getElementById('notaStima').textContent = note.join(' · ');
   }
 
   var perEl = document.getElementById('periodi');
   if (stato.puntiTotale.length >= 2) {
     perEl.style.display = 'flex';
-    // Cambiare periodo ridisegna solo l'SVG del totale, non tutta la lista.
     var scegliPeriodo = function (id) {
       stato.periodo = id;
       costruisciChip(perEl, PERIODI, id, scegliPeriodo);
@@ -792,70 +794,95 @@ function render(dati, daCache) {
 
   aggiornaGraficoTotale();
 
-  // --- movimenti importanti ---------------------------------------------
-  var movers = [];
-  carte.forEach(function (c) {
-    if (c.ultimoPrezzo == null) return;
-    var vv = variazioneCarta(serieCarta(indice, c));
-    if (vv && Math.abs(vv.pct) >= SOGLIA_FORTE) {
-      movers.push({ nome: c.nome, pct: vv.pct, etichetta: vv.etichetta });
-    }
-  });
-  movers.sort(function (a, b) { return Math.abs(b.pct) - Math.abs(a.pct); });
+  // --- movimenti importanti ----------------------------------------------
+  disegnaMovimenti(carte, indice);
 
-  var movEl = document.getElementById('movimenti');
-  if (movers.length) {
-    movEl.style.display = 'block';
-    var html = '<div class="movimenti-titolo">Movimenti importanti (±' + SOGLIA_FORTE + '%)</div>';
-    movers.forEach(function (m) {
-      var dir = m.pct > 0 ? 'su' : 'giu';
-      var freccia = m.pct > 0 ? '▲ +' : '▼ −';
-      html += '<div class="mover ' + dir + '">' +
-        '<span class="mover-nome"></span>' +
-        '<span class="mover-pct ' + dir + '">' + freccia + pct(m.pct) + ' · ' + m.etichetta + '</span>' +
-        '</div>';
-    });
-    movEl.innerHTML = html;
-    // I nomi arrivano da Cardmarket: inseriti come testo, mai come HTML.
-    var nomi = movEl.querySelectorAll('.mover-nome');
-    for (var i = 0; i < movers.length; i++) nomi[i].textContent = movers[i].nome;
-  } else {
-    movEl.style.display = 'none';
-  }
+  // --- conteggio e ordinamento -------------------------------------------
+  document.getElementById('conteggio').textContent =
+    carte.length + (carte.length === 1 ? ' carta in collezione' : ' carte in collezione');
 
-  // --- barra di ordinamento ---------------------------------------------
   var ordEl = document.getElementById('ordina');
-  ordEl.style.display = 'flex';
-  ordEl.innerHTML = '<span class="etichetta-ordina">ordina</span>';
-  var box = document.createElement('span');
-  box.style.display = 'flex';
-  box.style.gap = '6px';
-  box.style.flexWrap = 'wrap';
-  // Cambiare ordinamento ridisegna solo la lista.
   var scegliOrdine = function (id) {
     stato.ordine = id;
     scrivi(CHIAVE_ORDINE, id);
-    costruisciChip(box, ORDINAMENTI, id, scegliOrdine);
-    disegnaLista(ordinaCarte(carte, indice), indice);
+    costruisciChip(ordEl, ORDINAMENTI, id, scegliOrdine);
+    disegnaGriglia(ordinaCarte(carte, indice), indice);
   };
-  costruisciChip(box, ORDINAMENTI, stato.ordine, scegliOrdine);
-  ordEl.appendChild(box);
+  costruisciChip(ordEl, ORDINAMENTI, stato.ordine, scegliOrdine);
 
-  // --- lista -------------------------------------------------------------
-  disegnaLista(ordinaCarte(carte, indice), indice);
+  disegnaGriglia(ordinaCarte(carte, indice), indice);
+}
+
+function disegnaMovimenti(carte, indice) {
+  var el = document.getElementById('movimenti');
+  var movers = [];
+
+  carte.forEach(function (c) {
+    if (c.ultimoPrezzo == null) return;
+    var v = variazioneCarta(serieCarta(indice, c));
+    if (v && Math.abs(v.pct) >= SOGLIA_FORTE) movers.push({ carta: c, v: v });
+  });
+
+  if (!movers.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  movers.sort(function (a, b) { return Math.abs(b.v.pct) - Math.abs(a.v.pct); });
+
+  el.style.display = 'block';
+  el.innerHTML = '<div class="movimenti-titolo">Si sono mosse di più (oltre il ' + SOGLIA_FORTE + '%)</div>' +
+    '<div class="movimenti-fila"></div>';
+
+  var fila = el.querySelector('.movimenti-fila');
+
+  movers.forEach(function (m) {
+    var b = document.createElement('button');
+    b.className = 'mov ' + classeVar(m.v);
+    b.dataset.link = m.carta.link;
+
+    if (m.carta.immagine) {
+      var img = document.createElement('img');
+      img.src = m.carta.immagine;
+      img.alt = '';
+      b.appendChild(img);
+    }
+
+    var box = document.createElement('div');
+    var nome = document.createElement('span');
+    nome.className = 'mov-nome';
+    nome.textContent = m.carta.nome;
+    var p = document.createElement('span');
+    p.className = 'mov-pct ' + classeVar(m.v);
+    p.textContent = testoVar(m.v) + ' in ' + m.v.etichetta;
+    box.appendChild(nome);
+    box.appendChild(p);
+    b.appendChild(box);
+
+    b.addEventListener('click', function () { vaiAllaTessera(m.carta.link); });
+    fila.appendChild(b);
+  });
+}
+
+function vaiAllaTessera(link) {
+  var t = null;
+  var tessere = document.querySelectorAll('.tessera');
+  for (var i = 0; i < tessere.length; i++) {
+    if (tessere[i].dataset.link === link) { t = tessere[i]; break; }
+  }
+  if (!t) return;
+  t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  t.classList.remove('lampeggia');
+  void t.offsetWidth;
+  t.classList.add('lampeggia');
 }
 
 function ordinaCarte(carte, indice) {
   var arr = carte.slice();
   if (stato.ordine === 'valore') {
-    arr.sort(function (a, b) {
-      return (valoreCarta(b, indice) - valoreCarta(a, indice));
-    });
+    arr.sort(function (a, b) { return valoreCarta(b, indice) - valoreCarta(a, indice); });
   } else if (stato.ordine === 'variazione') {
     arr.sort(function (a, b) {
       var va = variazioneCarta(serieCarta(indice, a));
       var vb = variazioneCarta(serieCarta(indice, b));
-      return (vb ? vb.pct : -Infinity) - (va ? va.pct : -Infinity);
+      return Math.abs(vb ? vb.pct : 0) - Math.abs(va ? va.pct : 0);
     });
   } else if (stato.ordine === 'nome') {
     arr.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'it'); });
@@ -872,10 +899,29 @@ function valoreCarta(c, indice) {
   return p * (c.quantita || 1);
 }
 
-// Le miniature sono data: URI dentro data.json, quindi `loading="lazy"` non
-// ha effetto (non c'è rete da rimandare) e il browser le decodifica tutte
-// insieme. Con l'observer la sorgente viene assegnata solo quando la riga si
-// avvicina allo schermo.
+// Prezzo da mostrare e stato della carta, in un posto solo: la tessera e la
+// scheda grande devono raccontare la stessa cosa.
+function letturaCarta(c, serie) {
+  if (c.ultimoPrezzo != null) {
+    return { prezzo: c.ultimoPrezzo, stimato: false, stato: null };
+  }
+  if (serie.length) {
+    return {
+      prezzo: serie[serie.length - 1].prezzo,
+      stimato: true,
+      stato: (c.ultimoBloccato ? 'anti-bot' : 'errore') + ', ultimo noto ' + formattaGiorno(serie[serie.length - 1].data)
+    };
+  }
+  return {
+    prezzo: null,
+    stimato: false,
+    stato: c.ultimoBloccato ? 'anti-bot' : (c.ultimoErrore ? 'errore' : 'mai rilevata')
+  };
+}
+
+// Le immagini sono data: URI dentro data.json, quindi loading="lazy" non ha
+// effetto: non c'è rete da rimandare e il browser le decodifica tutte insieme.
+// Con l'observer la sorgente viene assegnata solo quando la tessera si avvicina.
 var osservatore = 'IntersectionObserver' in window
   ? new IntersectionObserver(function (voci, obs) {
       voci.forEach(function (v) {
@@ -884,139 +930,186 @@ var osservatore = 'IntersectionObserver' in window
         if (img.dataset.src) { img.src = img.dataset.src; delete img.dataset.src; }
         obs.unobserve(img);
       });
-    }, { rootMargin: '400px 0px' })
+    }, { rootMargin: '600px 0px' })
   : null;
 
-function disegnaLista(carte, indice) {
-  var lista = document.getElementById('lista');
-  lista.innerHTML = '';
+// Con IMMAGINI_HD la versione grande arriva dalla rete e sostituisce quella
+// incorporata solo se il caricamento riesce: se Cardmarket blocca la richiesta
+// non si vede alcun buco.
+function alzaRisoluzione(img, carta) {
+  if (!IMMAGINI_HD || !carta.immagineUrl) return;
+  var grande = new Image();
+  grande.referrerPolicy = 'no-referrer';
+  grande.onload = function () { img.src = carta.immagineUrl; };
+  grande.src = carta.immagineUrl;
+}
+
+function disegnaGriglia(carte, indice) {
+  var griglia = document.getElementById('griglia');
+  griglia.innerHTML = '';
   var frag = document.createDocumentFragment();
 
   carte.forEach(function (c, idx) {
-    var riga = document.createElement('div');
-    riga.className = 'riga';
+    var serie = serieCarta(indice, c);
+    var lettura = letturaCarta(c, serie);
+    var v = c.ultimoPrezzo != null ? variazioneCarta(serie) : null;
+    var forte = v && Math.abs(v.pct) >= SOGLIA_FORTE;
+
+    var t = document.createElement('button');
+    t.className = 'tessera' + (forte ? ' forte' : '') + (lettura.prezzo == null || lettura.stimato ? ' spenta' : '');
+    t.dataset.link = c.link;
+    t.setAttribute('aria-label', c.nome);
+
+    var cornice = document.createElement('div');
+    cornice.className = 'cornice';
 
     if (c.immagine) {
       var img = document.createElement('img');
-      img.className = 'miniatura';
-      img.alt = c.nome;
+      img.alt = '';
       img.referrerPolicy = 'no-referrer';
-      // Le prime righe sono già a schermo: caricale subito, il resto a scorrimento.
-      if (idx < 5 || !osservatore) img.src = c.immagine;
+      if (idx < 12 || !osservatore) img.src = c.immagine;
       else { img.dataset.src = c.immagine; osservatore.observe(img); }
-      riga.appendChild(img);
+      alzaRisoluzione(img, c);
+      cornice.appendChild(img);
     } else {
       var seg = document.createElement('div');
-      seg.className = 'miniatura vuota';
+      seg.className = 'segnaposto';
       seg.textContent = '🂠';
-      riga.appendChild(seg);
+      cornice.appendChild(seg);
     }
 
-    var info = document.createElement('div');
-    info.className = 'info';
+    if (c.filtroInfo) {
+      var g = document.createElement('span');
+      g.className = 'segno grado';
+      g.textContent = c.filtroInfo;
+      cornice.appendChild(g);
+    } else if (lettura.stato) {
+      var s = document.createElement('span');
+      s.className = 'segno stato';
+      s.textContent = c.ultimoBloccato ? 'anti-bot' : 'errore';
+      cornice.appendChild(s);
+    }
+
+    if (c.quantita && c.quantita > 1) {
+      var q = document.createElement('span');
+      q.className = 'segno qta';
+      q.textContent = '×' + c.quantita;
+      cornice.appendChild(q);
+    }
+
+    var spark = graficoCarta(serie, 190, 34, 3, coloreVar(v));
+    if (spark) {
+      var box = document.createElement('div');
+      box.innerHTML = spark;
+      var svg = box.firstChild;
+      svg.setAttribute('class', 'spark');
+      cornice.appendChild(svg);
+    } else {
+      var vuoto = document.createElement('div');
+      vuoto.className = 'spark-vuoto';
+      cornice.appendChild(vuoto);
+    }
+
+    t.appendChild(cornice);
+
+    var piede = document.createElement('div');
+    piede.className = 'piede';
 
     var nome = document.createElement('div');
     nome.className = 'nome';
-    nome.textContent = c.nome + (c.quantita && c.quantita > 1 ? ' ×' + c.quantita : '');
-    info.appendChild(nome);
+    nome.textContent = c.nome;
+    piede.appendChild(nome);
 
-    if (c.filtroInfo) {
-      var badge = document.createElement('div');
-      badge.className = 'badge';
-      badge.textContent = c.filtroInfo.toUpperCase();
-      info.appendChild(badge);
-    }
+    var riga = document.createElement('div');
+    riga.className = 'riga-prezzo';
 
-    var serie = serieCarta(indice, c);
-    var chip = document.createElement('div');
+    var prezzo = document.createElement('span');
+    prezzo.className = 'prezzo num' + (lettura.stimato ? ' stimato' : '');
+    prezzo.textContent = lettura.prezzo == null ? '—' : euroCorto(lettura.prezzo);
+    riga.appendChild(prezzo);
 
-    if (c.ultimoPrezzo != null) {
-      chip.className = 'prezzo-chip';
-      chip.textContent = euro(c.ultimoPrezzo);
-      var dett = document.createElement('div');
-      dett.className = 'dettagli';
-      var parti = [formattaData(c.ultimaData)];
-      if (c.ultimaMedia3 != null) parti.push('med3 ' + euro(c.ultimaMedia3));
-      if (c.ultimeOfferte != null) parti.push(c.ultimeOfferte + ' off. IT');
-      dett.textContent = parti.join(' · ');
-      info.appendChild(dett);
-    } else if (serie.length) {
-      // Controllo fallito ma un prezzo storico c'è: mostralo come stimato
-      // invece di far sparire la carta dal conto.
-      var ultimo = serie[serie.length - 1];
-      chip.className = 'prezzo-chip stimato';
-      chip.textContent = euro(ultimo.prezzo);
-      var dettS = document.createElement('div');
-      dettS.className = 'dettagli';
-      dettS.textContent = (c.ultimoBloccato ? 'anti-bot' : 'errore') +
-        ' · ultimo noto ' + formattaData(ultimo.data);
-      info.appendChild(dettS);
-      riga.className += c.ultimoBloccato ? ' stato-bloccato' : ' stato-vuoto';
-    } else if (c.ultimoBloccato) {
-      riga.className += ' stato-bloccato';
-      chip.className = 'prezzo-chip bloccato';
-      chip.textContent = 'anti-bot';
-    } else {
-      riga.className += ' stato-vuoto';
-      chip.className = 'prezzo-chip vuoto';
-      chip.textContent = c.ultimoErrore ? 'errore' : '—';
-    }
+    var vv = document.createElement('span');
+    vv.className = 'var ' + classeVar(v);
+    vv.textContent = v ? testoVar(v) : '';
+    riga.appendChild(vv);
 
-    riga.appendChild(info);
+    piede.appendChild(riga);
+    t.appendChild(piede);
 
-    var colDx = document.createElement('div');
-    colDx.className = 'col-dx';
-    colDx.appendChild(chip);
+    t.addEventListener('click', function () { apriScheda(c, serie); });
 
-    if (c.ultimoPrezzo != null) {
-      var v = variazioneCarta(serie);
-      if (v) {
-        var vb = document.createElement('div');
-        if (Math.abs(v.pct) < 0.05) {
-          vb.className = 'var-badge pari';
-          vb.textContent = '= 0% · ' + v.etichetta;
-        } else {
-          var dir = v.pct > 0 ? 'su' : 'giu';
-          vb.className = 'var-badge ' + dir;
-          vb.textContent = (v.pct > 0 ? '▲ +' : '▼ −') + pct(v.pct) + ' · ' + v.etichetta;
-          if (Math.abs(v.pct) >= SOGLIA_FORTE) {
-            vb.className += ' forte';
-            riga.className += ' forte-' + dir;
-          }
-        }
-        colDx.appendChild(vb);
-      }
-    }
-
-    riga.appendChild(colDx);
-    frag.appendChild(riga);
-
-    // Grafico dell'andamento al tocco. L'SVG viene costruito alla prima
-    // apertura, non per tutte le carte in anticipo.
-    if (serie.length >= 2) {
-      var box = document.createElement('div');
-      box.className = 'grafico-box';
-      frag.appendChild(box);
-
-      riga.addEventListener('click', function () {
-        if (!box.dataset.pronto) {
-          var prezzi = serie.map(function (r) { return r.prezzo; });
-          box.innerHTML = disegnaSparkline(serie) +
-            '<div class="grafico-legenda">' +
-            '<span>' + formattaGiorno(serie[0].data) + '</span>' +
-            '<span>min ' + euro(Math.min.apply(null, prezzi)) +
-            ' · max ' + euro(Math.max.apply(null, prezzi)) + '</span>' +
-            '<span>' + formattaGiorno(serie[serie.length - 1].data) + '</span>' +
-            '</div>';
-          box.dataset.pronto = '1';
-        }
-        box.classList.toggle('aperto');
-      });
-    }
+    frag.appendChild(t);
   });
 
-  lista.appendChild(frag);
+  griglia.appendChild(frag);
 }
+
+// ---------------------------------------------------------------------------
+// Scheda grande
+// ---------------------------------------------------------------------------
+
+function apriScheda(c, serie) {
+  var velo = document.getElementById('velo');
+  var scheda = document.getElementById('scheda');
+  var lettura = letturaCarta(c, serie);
+  var v = c.ultimoPrezzo != null ? variazioneCarta(serie) : null;
+  var prezzi = serie.map(function (r) { return r.prezzo; });
+
+  var fatti = '';
+  function fatto(etichetta, valore) {
+    fatti += '<div>' + etichetta + '<b class="num">' + valore + '</b></div>';
+  }
+  if (c.quantita && c.quantita > 1) fatto('Copie', c.quantita);
+  if (c.ultimeOfferte != null) fatto('Venditori italiani', c.ultimeOfferte);
+  if (c.ultimaMedia3 != null) fatto('Media tre più basse', euro(c.ultimaMedia3));
+  if (prezzi.length) fatto('Massimo storico', euro(Math.max.apply(null, prezzi)));
+  if (prezzi.length) fatto('Minimo storico', euro(Math.min.apply(null, prezzi)));
+  if (c.quantita && c.quantita > 1 && lettura.prezzo != null) {
+    fatto('Valore delle copie', euro(lettura.prezzo * c.quantita));
+  }
+
+  var sotto = lettura.stato
+    ? '<div class="sotto pari">' + lettura.stato + '</div>'
+    : (v ? '<div class="sotto ' + classeVar(v) + '">' + testoVar(v) + ' rispetto al ' + formattaGiorno(v.da) + '</div>' : '');
+
+  scheda.innerHTML =
+    '<button class="chiudi" aria-label="Chiudi">×</button>' +
+    '<img class="scheda-img" src="' + (c.immagine || '') + '" alt="' + c.nome + '">' +
+    '<div>' +
+      '<h2>' + c.nome + '</h2>' +
+      '<div class="nota">' + (c.filtroInfo ? c.filtroInfo + ' — ' : '') +
+        'prezzo minimo fra i venditori italiani, rilevato il ' + formattaData(c.ultimaData) + '</div>' +
+      '<div class="prezzo-grande num">' + (lettura.prezzo == null ? '—' : euro(lettura.prezzo)) + '</div>' +
+      sotto +
+      '<div class="fatti">' + fatti + '</div>' +
+      (serie.length >= 2
+        ? '<div class="grafico-grande">' + graficoCarta(serie, 560, 140, 6, coloreVar(v)) + '</div>' +
+          '<div class="legenda"><span>' + formattaGiorno(serie[0].data) + '</span>' +
+          '<span>' + serie.length + ' rilevazioni</span>' +
+          '<span>' + formattaGiorno(serie[serie.length - 1].data) + '</span></div>'
+        : '<div class="nota">Storico troppo corto per un grafico: serve almeno un secondo controllo.</div>') +
+      '<a class="apri" href="' + c.link + '" target="_blank" rel="noopener">Apri la pagina su Cardmarket</a>' +
+    '</div>';
+
+  if (IMMAGINI_HD && c.immagineUrl) alzaRisoluzione(scheda.querySelector('.scheda-img'), c);
+
+  velo.hidden = false;
+  document.body.style.overflow = 'hidden';
+  scheda.querySelector('.chiudi').focus();
+}
+
+function chiudiScheda() {
+  document.getElementById('velo').hidden = true;
+  document.body.style.overflow = '';
+}
+
+document.getElementById('velo').addEventListener('click', function (e) {
+  if (e.target.id === 'velo' || e.target.classList.contains('chiudi')) chiudiScheda();
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') chiudiScheda();
+});
 </script>
 </body>
 </html>
