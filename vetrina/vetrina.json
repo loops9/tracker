@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "aggiornatoIl": "2026-11-09T10:34:54.038Z",
+  "aggiornatoIl": "2026-11-09T10:43:48.318Z",
   "carte": [
     {
       "id": "cmw92pb4f1jm4i",
@@ -76,7 +76,7 @@
       "condizione": "NM",
       "lingua": "Inglese",
       "quantita": 1,
-      "prezzo": 1116.67,
+      "prezzo": 1300,
       "immagine": null,
       "venduta": false
     },
@@ -89,7 +89,7 @@
       "condizione": "NM",
       "lingua": "Giapponese",
       "quantita": 1,
-      "prezzo": 39.67,
+      "prezzo": 40,
       "immagine": "img/cmw9407qwapzta.jpg",
       "venduta": false
     },
@@ -102,7 +102,20 @@
       "condizione": "NM",
       "lingua": "Inglese",
       "quantita": 1,
-      "prezzo": 241.67,
+      "prezzo": 250,
+      "immagine": null,
+      "venduta": false
+    },
+    {
+      "id": "cmw94udea7gnfj",
+      "nome": "1st anniversary brown box sealed",
+      "codice": "",
+      "espansione": "",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 5999,
       "immagine": null,
       "venduta": false
     }
