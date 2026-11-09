@@ -224,8 +224,12 @@ async function testEstensione() {
   });
   await ctx.route("https://www.cardmarket.com/**", servFixture);
 
-  let [sw] = ctx.serviceWorkers();
-  if (!sw) sw = await ctx.waitForEvent("serviceworker");
+  // il service worker può partire prima che l'evento sia ascoltato: lo cerco a intervalli
+  let sw = null;
+  for (let i = 0; i < 60 && !sw; i++) {
+    sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 500 }).catch(() => null));
+  }
+  if (!sw) throw new Error("service worker dell'estensione non avviato");
   const idEst = new URL(sw.url()).host;
   await sw.evaluate(installaGitHubFinto);
   const vetrina = () => sw.evaluate(async () => (await chrome.storage.local.get("vetrina")).vetrina || []);
@@ -279,22 +283,22 @@ async function testEstensione() {
   verifica(await form.locator("input[name=codice]").inputValue() === "OP01-024", "Ledger: codice ricavato dall'URL");
   verifica(/2,17 €/.test(await form.locator(".nota").textContent()), "Ledger: prezzo di mercato dall'ultimo controllo del tracker");
   await page.screenshot({ path: path.join(OUT, "ledger-modulo.png") });
-  await form.locator("button[type=submit]").click();
+  await form.locator("button[value=solo]").click();
   await form.locator("[data-esito]").filter({ hasText: "Aggiunta" }).waitFor();
   await chiudiTutto();
 
   form = await aggiungi("OP01-024", 1, "Inglese");
-  await form.locator("button[type=submit]").click();
+  await form.locator("button[value=solo]").click();
   await form.locator("[data-esito]").filter({ hasText: "già in vetrina" }).waitFor();
   await chiudiTutto();
 
   form = await aggiungi("OP01-016", 1, "Giapponese");
   verifica(/Aggiorna prezzi/.test(await form.locator(".nota").textContent()), "Ledger: senza prezzo recente lo dice");
-  await form.locator("button[type=submit]").click();
+  await form.locator("button[value=solo]").click();
   await form.locator("[data-esito]").filter({ hasText: "Aggiunta" }).waitFor();
   await chiudiTutto();
   form = await aggiungi("OP05-119", 1);
-  await form.locator("button[type=submit]").click();
+  await form.locator("button[value=solo]").click();
   await form.locator("[data-esito]").filter({ hasText: "Aggiunta" }).waitFor();
   await chiudiTutto();
 
@@ -317,6 +321,7 @@ async function testEstensione() {
   await opt.goto(`chrome-extension://${idEst}/options.html`);
   await opt.locator("#righe tr[data-id]").first().waitFor();
   verifica(await opt.locator("#righe tr[data-id]").count() === 3, "options: 3 righe");
+  verifica(await opt.isVisible("#daPubblicare"), "options: avviso di modifiche non ancora pubblicate");
 
   const riga = (id) => opt.locator(`#righe tr[data-id="${id}"]`);
   await riga(v[0].id).locator("input.prezzo").fill("3,00");
@@ -443,6 +448,26 @@ async function testEstensione() {
   const putDopo = log.filter((x) => x.metodo === "PUT").length;
   verifica(putDopo - putPrima === 1, "ripubblicazione: solo vetrina.json, immagini già presenti non ricaricate", putDopo - putPrima);
   verifica(log.some((x) => x.metodo === "DELETE" && x.path.endsWith(`${v[2].id}.jpg`)), "immagine della carta tolta eliminata dal repo");
+  verifica(await opt.isHidden("#daPubblicare"), "options: dopo la pubblicazione l'avviso sparisce");
+
+  // --- dal Ledger: "Aggiungi e pubblica" in un passo solo
+  await page.locator(`.tessera[data-link="${urlProdotto("OP01-024")}"]`).click();
+  await page.locator("#scheda a.apri[data-vetrina]").filter({ hasText: "✓ In vetrina (3)" }).waitFor();
+  verifica(true, "Ledger: la carta già presente mostra \"✓ In vetrina (3)\"");
+  await page.locator("#scheda a.apri[data-vetrina]").click();
+  form = page.locator("#cm-tracker-vetrina form");
+  await form.waitFor();
+  await form.locator("button[value=pubblica]").click();
+  await form.locator("[data-esito]").filter({ hasText: /pubblicata|non riuscita/ }).waitFor({ timeout: 60000 });
+  const esitoLedger = await form.locator("[data-esito]").textContent();
+  console.log("      " + esitoLedger.replace(/\n/g, " "));
+  const jsonDopo = await sw.evaluate(() => JSON.parse(decodeURIComponent(escape(atob(self.__repo.get("vetrina/vetrina.json").content)))));
+  verifica(/✓ .*Vetrina pubblicata/.test(esitoLedger) && jsonDopo.carte.find((c) => c.id === v[0].id).quantita === 4,
+    "Ledger: \"Aggiungi e pubblica\" aggiunge e pubblica, con conferma", jsonDopo.carte.map((c) => c.quantita));
+  verifica((await form.locator("[data-esito] a").first().getAttribute("href")) === "https://loops9.github.io/tracker/vetrina/", "Ledger: la conferma porta alla vetrina pubblica");
+  await page.screenshot({ path: path.join(OUT, "ledger-pubblicata.png") });
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
 
   // file pubblicati, per la verifica visiva della pagina
   const repoFinale = await sw.evaluate(() => Object.fromEntries([...self.__repo].map(([k, x]) => [k, x.content])));
@@ -599,6 +624,22 @@ async function testComportamentoPagina(browser, sito) {
   await ledger.goto(base + "/index.html");
   await ledger.waitForFunction(() => document.querySelectorAll("img").length > 5, null, { timeout: 15000 });
   verifica(errori.length === 0, "index.html (Ledger) si carica senza errori con data.json", errori);
+  for (const tema of ["light", "dark"]) {
+    for (const larghezza of [390, 1280]) {
+      const c = await browser.newContext({ viewport: { width: larghezza, height: 900 }, colorScheme: tema });
+      const pg = await c.newPage();
+      await pg.goto(base + "/index.html");
+      await pg.waitForFunction(() => document.querySelectorAll(".tessera").length > 5);
+      await pg.waitForTimeout(800);
+      await pg.screenshot({ path: path.join(OUT, `ledger-${larghezza}-${tema}.png`) });
+      if (larghezza === 1280) {
+        await pg.locator(".tessera").nth(2).click();
+        await pg.waitForTimeout(300);
+        await pg.screenshot({ path: path.join(OUT, `ledger-scheda-${tema}.png`) });
+      }
+      await c.close();
+    }
+  }
   await ledger.locator(".tessera").first().click();
   await ledger.locator("#scheda a.apri").waitFor();
   verifica(await ledger.locator("#scheda a[data-vetrina]").count() === 0, "Ledger senza estensione (amici): nessun pulsante \"Metti in vetrina\"");
