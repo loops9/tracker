@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "aggiornatoIl": "2026-11-09T10:07:39.698Z",
+  "aggiornatoIl": "2026-11-09T10:16:18.356Z",
   "carte": [
     {
       "id": "cmw92pb4f1jm4i",
@@ -52,7 +52,7 @@
       "quantita": 1,
       "prezzo": 13.17,
       "immagine": "img/cmw92yyl89vud3.jpg",
-      "venduta": false
+      "venduta": true
     },
     {
       "id": "cmw92z7cbc5ocd",
