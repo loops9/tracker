@@ -6,15 +6,22 @@ italiani, più due pagine pubblicate su GitHub Pages:
 - **Ledger** (privato di fatto, è il tuo storico): https://loops9.github.io/tracker/
 - **Vetrina** (da mandare agli amici): https://loops9.github.io/tracker/vetrina/
 
-## Aggiornare l'estensione dopo un `git pull`
+## Aggiornare l'estensione
 
-L'estensione è caricata "non pacchettizzata" da questa cartella, quindi Chrome non si accorge da solo
-dei file nuovi.
+L'estensione è caricata "non pacchettizzata" da una cartella, quindi Chrome non si accorge da solo
+dei file nuovi. **Usa sempre la stessa cartella**: caricandone un'altra Chrome crea un'estensione
+nuova e vuota (senza carte, storico e token). La cartella giusta è in `chrome://extensions` →
+Dettagli → "Caricata da".
 
-1. `git pull` nella cartella del repo.
-2. Apri `chrome://extensions`.
-3. Sulla scheda "Cardmarket Price Tracker - One Piece" premi **Ricarica** (la freccia circolare).
-4. Ricarica anche le schede di Cardmarket già aperte, altrimenti non vedono il pulsante nuovo.
+1. Scarica i file nuovi, in uno dei due modi:
+   - **senza git**: scarica https://github.com/loops9/tracker/archive/refs/heads/main.zip, estrailo e
+     copia il *contenuto* della cartella `tracker-main` dentro la cartella dell'estensione,
+     sovrascrivendo;
+   - **con git**: `git pull` nella cartella.
+2. Apri `chrome://extensions` e sulla scheda "Cardmarket Price Tracker - One Piece" premi **Ricarica**.
+3. Ricarica anche le schede del Ledger già aperte, altrimenti non vedono il pulsante nuovo.
+
+Prima di aggiornare, per sicurezza: popup → **Esporta lista carte** (carte e storico; il token no).
 
 Se l'estensione non è ancora installata: `chrome://extensions` → attiva "Modalità sviluppatore" →
 "Carica estensione non pacchettizzata" → scegli questa cartella.
@@ -24,12 +31,14 @@ Se l'estensione non è ancora installata: `chrome://extensions` → attiva "Moda
 1. **Impostazioni GitHub** (una volta sola): popup dell'estensione → "Impostazioni GitHub", oppure in
    fondo alla pagina di gestione. Utente `loops9`, repository `tracker`, e un token. Consigliato un
    *fine-grained token* limitato a questo repository con solo "Contents: Read and write".
-2. **Aggiungere una carta**: apri la pagina della carta su Cardmarket e premi **Metti in vetrina** (in
-   basso a destra). Nome, codice, espansione, rarità e immagine sono letti dalla pagina: controllali,
-   scegli condizione, lingua e quantità e premi "Aggiungi".
+2. **Aggiungere una carta**: apri il Ledger (https://loops9.github.io/tracker/), clicca la carta e
+   nella scheda di dettaglio premi **Metti in vetrina**. Nome, immagine e prezzo di mercato arrivano
+   dal tracker, codice ed espansione dall'URL Cardmarket: controllali, scegli condizione, lingua e
+   quantità e premi "Aggiungi". Il pulsante lo vedi solo tu (serve l'estensione): gli amici no.
 3. **Gestire**: popup → **Gestisci vetrina** (oppure Opzioni dell'estensione). Qui puoi:
-   - premere **Aggiorna prezzi**: apre una alla volta le pagine Cardmarket filtrate sui venditori
-     italiani e calcola il prezzo di mercato (media dei 3 prezzi più bassi). Lascia lavorare la pagina;
+   - premere **Aggiorna prezzi**: apre in background, quattro alla volta, le pagine Cardmarket
+     filtrate sui venditori italiani e calcola il prezzo di mercato (media dei 3 prezzi più bassi).
+     Puoi continuare a lavorare; le schede compaiono e spariscono da sole nella barra;
    - scrivere un **prezzo personale** (vuoto = si usa il prezzo di mercato). Lo scostamento oltre il
      20% dal mercato è evidenziato. L'aggiornamento prezzi non lo modifica mai;
    - cambiare la quantità, segnare una carta come **venduta** o toglierla (✕).
@@ -53,6 +62,7 @@ l'invito a scriverti dopo il pagamento indicando la carta.
 npm test                                   # unitari, nessuna dipendenza
 npm install && npx playwright install chromium
 npm run test:e2e                           # estensione vera in Chromium, screenshot in test/output/
+E2E_GRAFICO=1 xvfb-run npm run test:e2e    # idem con finestre vere invece di headless
 ```
 
 Architettura, decisioni e limiti noti: [NOTES.md](NOTES.md).
