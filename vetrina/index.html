@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Carte One Piece TCG in vendita, con prezzo e pagamento PayPal.">
+<title>Vetrina carte One Piece</title>
+<link rel="stylesheet" href="vetrina.css">
+</head>
+<body>
+  <header class="testata">
+    <div class="guscio">
+      <h1>Carte One Piece in vendita</h1>
+      <p class="aggiornata" id="aggiornata"></p>
+      <p class="invito">Dopo il pagamento scrivimi indicando la carta che hai preso, così te la metto da parte.</p>
+    </div>
+  </header>
+
+  <main class="guscio">
+    <div class="strumenti" id="strumenti" hidden>
+      <label class="cerca">
+        <span class="nascosto">Cerca</span>
+        <input id="cerca" type="search" placeholder="Cerca per nome, codice, espansione…" autocomplete="off" enterkeyhint="search">
+      </label>
+      <label class="ordina">
+        <span class="nascosto">Ordina per</span>
+        <select id="ordina">
+          <option value="prezzo-asc">Prezzo crescente</option>
+          <option value="prezzo-desc">Prezzo decrescente</option>
+          <option value="nome">Nome (A–Z)</option>
+        </select>
+      </label>
+    </div>
+    <p class="conteggio" id="conteggio" aria-live="polite"></p>
+
+    <div class="griglia" id="griglia"></div>
+    <p class="messaggio" id="messaggio" hidden></p>
+  </main>
+
+  <footer class="guscio piede">I prezzi si intendono per una copia. Pagamento tramite PayPal.</footer>
+
+  <script src="vetrina.js"></script>
+</body>
+</html>
