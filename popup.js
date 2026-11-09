@@ -194,14 +194,11 @@ document.getElementById("btnStorico").addEventListener("click", async () => {
 });
 
 document.getElementById("btnEsportaConfig").addEventListener("click", async () => {
-  const dati = await chrome.storage.local.get(["carte", "storico"]);
-  const blob = new Blob([JSON.stringify(dati, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "cardmarket_tracker_backup.json";
-  a.click();
-  URL.revokeObjectURL(url);
+  try {
+    stato.textContent = await esportaBackup();
+  } catch (err) {
+    stato.textContent = "Errore nell'esportazione: " + err.message;
+  }
 });
 
 document.getElementById("btnImportaConfig").addEventListener("click", () => {
@@ -210,31 +207,17 @@ document.getElementById("btnImportaConfig").addEventListener("click", () => {
 
 document.getElementById("inputImporta").addEventListener("change", async (e) => {
   const file = e.target.files[0];
+  e.target.value = "";
   if (!file) return;
-
   try {
-    const testo = await file.text();
-    const dati = JSON.parse(testo);
-    if (!Array.isArray(dati.carte)) throw new Error("il file non contiene una lista carte valida");
-
-    const confermato = confirm(
-      `Importare ${dati.carte.length} carte e ${Array.isArray(dati.storico) ? dati.storico.length : 0} righe di storico? La lista attuale verrà sostituita.`
-    );
-    if (!confermato) {
-      e.target.value = "";
-      return;
+    const esito = await importaBackup(file);
+    if (esito) {
+      stato.textContent = esito;
+      ricarica();
     }
-
-    await chrome.storage.local.set({
-      carte: dati.carte,
-      storico: Array.isArray(dati.storico) ? dati.storico : [],
-    });
-    stato.textContent = "Importazione completata.";
-    ricarica();
   } catch (err) {
     stato.textContent = "Errore nell'importazione: " + err.message;
   }
-  e.target.value = "";
 });
 
 document.getElementById("btnVetrina").addEventListener("click", () => {
