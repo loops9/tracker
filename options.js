@@ -34,7 +34,7 @@ async function modifica(id, cambia) {
   const nuova = cambia({ ...vetrina[i] });
   if (nuova === null) vetrina.splice(i, 1);
   else vetrina[i] = { ...nuova, updatedAt: Date.now() };
-  await chrome.storage.local.set({ vetrina });
+  await chrome.storage.local.set({ vetrina, vetrinaModificataIl: Date.now() });
 }
 
 function cellaMercato(c) {
@@ -127,8 +127,8 @@ function riga(c) {
 }
 
 async function ricarica() {
-  const { vetrina = [], vetrinaPubblicataIl, githubOwner, githubRepo } = await chrome.storage.local.get([
-    "vetrina", "vetrinaPubblicataIl", "githubOwner", "githubRepo",
+  const { vetrina = [], vetrinaPubblicataIl, vetrinaModificataIl, githubOwner, githubRepo } = await chrome.storage.local.get([
+    "vetrina", "vetrinaPubblicataIl", "vetrinaModificataIl", "githubOwner", "githubRepo",
   ]);
 
   // non perdere ciò che si sta scrivendo se la tabella viene ridisegnata
@@ -161,6 +161,8 @@ async function ricarica() {
   document.getElementById("riepilogo").textContent =
     `${inVendita.length} carte in vendita (${pezzi} pezzi)` +
     (vetrinaPubblicataIl ? ` · pubblicata il ${dataBreve(vetrinaPubblicataIl)}` : " · mai pubblicata");
+  const daPubblicare = vetrina.length > 0 && (vetrinaModificataIl || 0) > (vetrinaPubblicataIl || 0);
+  document.getElementById("daPubblicare").hidden = !daPubblicare;
 
   const link = document.getElementById("linkVetrina");
   if (githubOwner && githubRepo) {
@@ -266,7 +268,7 @@ chrome.storage.onChanged.addListener((cambi, area) => {
     const p = cambi.vetrinaProgresso.newValue;
     scriviStato(`Aggiornamento prezzi: ${p.fatte} di ${p.totale} pagine lette…`);
   }
-  if (cambi.vetrina || cambi.vetrinaPubblicataIl || cambi.githubOwner || cambi.githubRepo) ricarica();
+  if (cambi.vetrina || cambi.vetrinaPubblicataIl || cambi.vetrinaModificataIl || cambi.githubOwner || cambi.githubRepo) ricarica();
 });
 
 // ------------------------------------------------------------ impostazioni

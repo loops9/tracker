@@ -7,22 +7,50 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prezzi Carte">
-<meta name="theme-color" content="#0b1020">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f4f0e8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1916" media="(prefers-color-scheme: dark)">
 <title>Cardmarket Ledger</title>
 <style>
+  /* Stile "carta e inchiostro", condiviso con la vetrina (vetrina/vetrina.css).
+     I nomi delle variabili sono quelli storici: --inchiostro è lo sfondo,
+     --pergamena le superfici, --oro l'accento (terracotta). */
   :root {
-    --inchiostro: #0b1020;
-    --pergamena: #141b31;
-    --pergamena-alta: #1c2440;
-    --oro: #c9a35f;
-    --oro-chiaro: #e5c584;
-    --testo: #ece7da;
-    --tenue: #828ca6;
-    --sale: #5fae9d;
-    --scende: #cd7159;
-    --filo: rgba(201, 163, 95, 0.22);
-    --bordo: rgba(255, 255, 255, 0.07);
+    color-scheme: light dark;
+    --inchiostro: #f4f0e8;
+    --pergamena: #fbf8f2;
+    --pergamena-alta: #ebe5da;
+    --oro: #a4573a;
+    --oro-chiaro: #8a4529;
+    --testo: #2a2520;
+    --tenue: #776d61;
+    --sale: #4e7a3f;
+    --scende: #b2443b;
+    --filo: rgba(42, 37, 32, 0.16);
+    --bordo: rgba(42, 37, 32, 0.10);
+    --velo: rgba(42, 37, 32, 0.45);
+    --ombra: 0 18px 44px rgba(42, 37, 32, 0.22);
     --larghezza-tessera: 172px;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --inchiostro: #1b1916;
+      --pergamena: #24211d;
+      --pergamena-alta: #2e2a25;
+      --oro: #c98a62;
+      --oro-chiaro: #dba383;
+      --testo: #ece6dc;
+      --tenue: #9d9488;
+      --sale: #8fae7e;
+      --scende: #e07a6e;
+      --filo: rgba(236, 230, 220, 0.14);
+      --bordo: rgba(236, 230, 220, 0.08);
+      --velo: rgba(14, 12, 10, 0.78);
+      --ombra: 0 18px 44px rgba(0, 0, 0, 0.5);
+    }
   }
 
   * { box-sizing: border-box; }
@@ -33,15 +61,15 @@
     margin: 0;
     background: var(--inchiostro);
     color: var(--testo);
-    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-    font-size: 16px;
+    font-family: var(--sans);
+    font-size: 15px;
     line-height: 1.5;
     padding-bottom: 60px;
   }
 
   .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
-  .sans { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .sans { font-family: var(--sans); }
 
   .guscio { max-width: 1220px; margin: 0 auto; padding: 0 22px; }
 
@@ -60,10 +88,10 @@
     gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
   }
 
-  h1 { font-size: 21px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+  h1 { font-family: var(--serif); font-size: 24px; font-weight: 600; margin: 0; letter-spacing: 0.005em; }
 
   .aggiornato {
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--sans);
     font-size: 12.5px; color: var(--tenue);
   }
   .aggiornato .cache { color: var(--oro); }
@@ -72,7 +100,7 @@
 
   .etichetta { font-size: 14px; color: var(--oro); margin-bottom: 6px; }
 
-  .valore { font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.015em; }
+  .valore { font-family: var(--serif); font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.015em; }
 
   .delta { margin-top: 10px; font-size: 15px; }
   .delta.su { color: var(--sale); }
@@ -81,7 +109,7 @@
 
   .nota {
     margin-top: 8px; font-size: 12.5px; color: var(--tenue); max-width: 40ch;
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--sans);
   }
 
   .chip-fila { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -90,7 +118,7 @@
     background: none; color: var(--tenue); cursor: pointer;
     border: 1px solid var(--bordo); border-radius: 2px;
     padding: 4px 11px; font-size: 12.5px;
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--sans);
   }
   .chip:hover { color: var(--testo); }
   .chip.attivo { color: var(--inchiostro); background: var(--oro); border-color: var(--oro); }
@@ -101,14 +129,14 @@
   .legenda {
     display: flex; justify-content: space-between; gap: 10px; margin-top: 6px;
     font-size: 12px; color: var(--tenue);
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--sans);
   }
 
   /* ------------------------------------------- movimenti importanti */
 
   .movimenti { display: none; margin-bottom: 26px; }
 
-  .movimenti-titolo { font-size: 15px; color: var(--oro); margin-bottom: 12px; }
+  .movimenti-titolo { font-family: var(--serif); font-size: 16px; color: var(--oro); margin-bottom: 12px; }
 
   .movimenti-fila { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
 
@@ -123,7 +151,7 @@
   .mov img { width: 32px; height: 45px; object-fit: cover; border-radius: 2px; background: var(--pergamena-alta); }
   .mov .mov-nome { display: block; max-width: 20ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mov .mov-pct { display: block; font-size: 13px;
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    font-family: var(--sans); }
   .mov.su { border-left-color: var(--sale); }
   .mov.giu { border-left-color: var(--scende); }
 
@@ -138,7 +166,7 @@
     gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
   }
   .barra .conteggio { font-size: 13px; color: var(--tenue);
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    font-family: var(--sans); }
 
   /* ------------------------------------------------------------ griglia */
 
@@ -158,7 +186,7 @@
     border: 1px solid var(--bordo); border-radius: 3px;
     padding: 9px 9px 0; overflow: hidden;
   }
-  .tessera:hover .cornice { border-color: rgba(201, 163, 95, 0.45); }
+  .tessera:hover .cornice { border-color: color-mix(in srgb, var(--oro) 45%, transparent); }
 
   .cornice img, .cornice .segnaposto {
     display: block; width: 100%; aspect-ratio: 5 / 7;
@@ -176,25 +204,25 @@
 
   .segno {
     position: absolute; top: 15px; border-radius: 2px; padding: 1px 7px;
-    font-size: 11.5px; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 11.5px; font-family: var(--sans);
   }
-  .segno.grado { left: 15px; background: rgba(201, 163, 95, 0.92); color: #16110a; font-weight: 600; }
-  .segno.qta { right: 15px; background: rgba(11, 16, 32, 0.86); border: 1px solid var(--filo); color: var(--oro-chiaro); }
-  .segno.stato { left: 15px; background: rgba(11, 16, 32, 0.9); border: 1px solid var(--bordo); color: var(--tenue); }
+  .segno.grado { left: 15px; background: var(--oro); color: var(--inchiostro); font-weight: 600; }
+  .segno.qta { right: 15px; background: color-mix(in srgb, var(--pergamena) 90%, transparent); border: 1px solid var(--filo); color: var(--oro-chiaro); }
+  .segno.stato { left: 15px; background: color-mix(in srgb, var(--pergamena) 92%, transparent); border: 1px solid var(--bordo); color: var(--tenue); }
 
   .piede { padding: 10px 2px 0; }
-  .piede .nome { font-size: 14.5px; line-height: 1.25; min-height: 2.5em; }
+  .piede .nome { font-family: var(--serif); font-size: 15.5px; line-height: 1.25; min-height: 2.5em; }
   .piede .riga-prezzo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 5px; }
-  .piede .prezzo { font-size: 21px; font-weight: 600; }
+  .piede .prezzo { font-family: var(--serif); font-size: 21px; font-weight: 600; }
   .piede .prezzo.stimato { color: var(--tenue); }
   .piede .var { font-size: 13px; white-space: nowrap;
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    font-family: var(--sans); }
 
-  .tessera.forte .cornice { border-color: rgba(201, 163, 95, 0.6); box-shadow: 0 0 0 1px rgba(201, 163, 95, 0.16); }
+  .tessera.forte .cornice { border-color: color-mix(in srgb, var(--oro) 60%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--oro) 16%, transparent); }
 
   @keyframes lampo {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(201, 163, 95, 0); }
-    30% { box-shadow: 0 0 0 3px rgba(201, 163, 95, 0.55); }
+    0%, 100% { box-shadow: 0 0 0 1px transparent; }
+    30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--oro) 55%, transparent); }
   }
   .tessera.lampeggia .cornice { animation: lampo 1.1s ease-in-out 2; }
 
@@ -202,7 +230,7 @@
 
   .velo {
     position: fixed; inset: 0; z-index: 20;
-    background: rgba(5, 8, 18, 0.82);
+    background: var(--velo);
     display: flex; align-items: flex-start; justify-content: center;
     padding: 40px 20px; overflow-y: auto;
   }
@@ -216,17 +244,17 @@
   }
 
   .scheda-img { width: 100%; border-radius: 4px; display: block;
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5); background: var(--pergamena-alta); }
+    box-shadow: var(--ombra); background: var(--pergamena-alta); }
 
-  .scheda h2 { font-size: 26px; font-weight: 600; margin: 0 0 6px; }
-  .scheda .prezzo-grande { font-size: 44px; font-weight: 600; line-height: 1; margin: 20px 0 8px; }
+  .scheda h2 { font-family: var(--serif); font-size: 28px; font-weight: 600; margin: 0 0 6px; }
+  .scheda .prezzo-grande { font-family: var(--serif); font-size: 44px; font-weight: 600; line-height: 1; margin: 20px 0 8px; }
   .scheda .sotto { font-size: 14px; }
 
   .fatti { display: flex; flex-wrap: wrap; gap: 22px 30px; margin: 22px 0 24px; }
   .fatti div { font-size: 12.5px; color: var(--tenue);
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    font-family: var(--sans); }
   .fatti b { display: block; margin-top: 2px; font-size: 17px; font-weight: 600; color: var(--testo);
-    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
+    font-family: var(--serif); }
 
   .scheda .grafico-grande svg { display: block; width: 100%; height: 140px; }
 
@@ -234,7 +262,7 @@
     display: inline-block; margin-top: 20px; font-size: 13.5px;
     color: var(--oro-chiaro); text-decoration: none;
     border-bottom: 1px solid var(--filo); padding-bottom: 2px;
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--sans);
   }
   .scheda .apri:hover { border-color: var(--oro); }
 
@@ -655,16 +683,16 @@ function disegnaGrafico(punti, W, H, PAD, colore, punto) {
   var ultimo = pts[pts.length - 1].split(',');
 
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
-    '<polygon points="' + area + '" fill="' + colore + '" opacity="0.12"/>' +
-    '<polyline points="' + linea + '" fill="none" stroke="' + colore + '" stroke-width="2" ' +
+    '<polygon points="' + area + '" style="fill:' + colore + '" opacity="0.12"/>' +
+    '<polyline points="' + linea + '" fill="none" style="stroke:' + colore + '" stroke-width="2" ' +
     'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
-    (punto ? '<circle cx="' + ultimo[0] + '" cy="' + ultimo[1] + '" r="2.6" fill="' + colore + '"/>' : '') +
+    (punto ? '<circle cx="' + ultimo[0] + '" cy="' + ultimo[1] + '" r="2.6" style="fill:' + colore + '"/>' : '') +
     '</svg>';
 }
 
 function coloreVar(v) {
-  if (!v || Math.abs(v.pct) < 0.05) return '#828ca6';
-  return v.pct > 0 ? '#5fae9d' : '#cd7159';
+  if (!v || Math.abs(v.pct) < 0.05) return 'var(--tenue)';
+  return v.pct > 0 ? 'var(--sale)' : 'var(--scende)';
 }
 
 function graficoCarta(serie, W, H, PAD, colore) {
@@ -688,7 +716,7 @@ function aggiornaGraficoTotale() {
 
   if (punti.length < 2) { gtEl.innerHTML = ''; gtLeg.innerHTML = ''; return; }
 
-  gtEl.innerHTML = disegnaGrafico(punti, 520, 132, 8, '#c9a35f', false);
+  gtEl.innerHTML = disegnaGrafico(punti, 520, 132, 8, 'var(--oro)', false);
 
   var valori = punti.map(function (p) { return p.totale; });
   gtLeg.innerHTML =

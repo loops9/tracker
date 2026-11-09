@@ -82,6 +82,16 @@ updatedAt` + interni `marketStato, marketAggiornatoIl, immagineFile, immagineFil
 condizione, lingua, quantità, prezzo finale, immagine relativa, venduta): niente URL Cardmarket,
 `marketPrice` o `customPrice`. Le carte senza alcun prezzo non vengono pubblicate e sono segnalate.
 
+### Grafica e flusso di pubblicazione (9/11/2026, seconda revisione)
+- Stile unico "carta e inchiostro" per Ledger, vetrina, gestione e modulo: toni caldi, titoli e
+  cifre grandi con grazie (Iowan/Palatino/Georgia), testo senza grazie, accento terracotta; chiaro
+  o scuro secondo il sistema. Nel Ledger sono stati cambiati solo i valori delle variabili CSS
+  (i nomi storici `--inchiostro`, `--oro`… restano) e i colori dei grafici passano per `style`.
+- Segnalazione dell'utente: "aggiungo una carta ma la vetrina resta vuota". L'aggiunta funzionava, ma
+  la pubblicazione era un passo separato e non evidente. Ora il modulo ha **Aggiungi e pubblica**
+  (con conferma, avvisi ed errori nel modulo stesso) e **Solo aggiungi**; la gestione mostra
+  "modifiche non ancora pubblicate" (`vetrinaModificataIl` > `vetrinaPubblicataIl`).
+
 ### Scraping veloce (tracker e vetrina)
 La versione su GitHub fino al 9/11/2026 era quella lenta: una scheda **in primo piano** alla volta,
 attesa di `status: complete` (immagini e pubblicità comprese) + 5 s, pausa di 4–9 s tra le carte.

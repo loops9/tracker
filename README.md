@@ -34,7 +34,9 @@ Se l'estensione non è ancora installata: `chrome://extensions` → attiva "Moda
 2. **Aggiungere una carta**: apri il Ledger (https://loops9.github.io/tracker/), clicca la carta e
    nella scheda di dettaglio premi **Metti in vetrina**. Nome, immagine e prezzo di mercato arrivano
    dal tracker, codice ed espansione dall'URL Cardmarket: controllali, scegli condizione, lingua e
-   quantità e premi "Aggiungi". Il pulsante lo vedi solo tu (serve l'estensione): gli amici no.
+   quantità e premi **Aggiungi e pubblica**: la carta entra in vetrina e la pagina pubblica viene
+   aggiornata subito (visibile dopo circa un minuto). Con "Solo aggiungi" invece la carta resta in
+   attesa finché non pubblichi dalla gestione. Il pulsante lo vedi solo tu (serve l'estensione).
 3. **Gestire**: popup → **Gestisci vetrina** (oppure Opzioni dell'estensione). Qui puoi:
    - premere **Aggiorna prezzi**: apre in background, quattro alla volta, le pagine Cardmarket
      filtrate sui venditori italiani e calcola il prezzo di mercato (media dei 3 prezzi più bassi).
@@ -45,7 +47,7 @@ Se l'estensione non è ancora installata: `chrome://extensions` → attiva "Moda
 4. **Pubblicare**: premi **Pubblica vetrina**. Vengono caricati su GitHub `vetrina/vetrina.json` e le
    immagini. Dopo circa un minuto la pagina è aggiornata.
 
-Le carte vendute restano in fondo alla pagina con l'etichetta "Venduta". Le carte senza alcun prezzo
+La gestione segnala in rosso quando ci sono modifiche non ancora pubblicate. Le carte vendute restano in fondo alla pagina con l'etichetta "Venduta". Le carte senza alcun prezzo
 non vengono pubblicate: la pagina di gestione te lo segnala.
 
 ## Il link da mandare agli amici
