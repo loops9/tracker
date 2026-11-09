@@ -93,6 +93,14 @@ test("applicaMercato: non tocca mai customPrice", () => {
   assert.equal(ok.updatedAt, 5);
 });
 
+test("applicaMercato: l'immagine appena letta sostituisce quella vecchia (versioni alternative)", () => {
+  const base = { id: "a", customPrice: null, immagineUrl: "https://cdn/V1.jpg" };
+  assert.equal(core.applicaMercato(base, { prezzi: [1], immagineUrl: "https://cdn/V2.jpg" }, 5).immagineUrl, "https://cdn/V2.jpg");
+  assert.equal(core.applicaMercato(base, { prezzi: [1], immagineUrl: null }, 5).immagineUrl, "https://cdn/V1.jpg");
+  const logo = "https://static.cardmarket.com/img/logos/cardmarket.png";
+  assert.equal(core.applicaMercato(base, { prezzi: [1], immagineUrl: logo }, 5).immagineUrl, "https://cdn/V1.jpg");
+});
+
 test("applicaMercato: zero inserzioni -> null e segnalazione", () => {
   const r = core.applicaMercato({ id: "a", customPrice: null, marketPrice: 10 }, { prezzi: [] }, 5);
   assert.equal(r.marketPrice, null);

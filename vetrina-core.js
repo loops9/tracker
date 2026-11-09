@@ -128,7 +128,9 @@ function applicaMercato(carta, ris, ora) {
     out.marketSampleSize = m.marketSampleSize;
     out.marketStato = m.marketSampleSize === 0 ? "nessuna inserzione italiana" : "ok";
     out.marketAggiornatoIl = ora;
-    if (!out.immagineUrl && ris && ris.immagineUrl) out.immagineUrl = ris.immagineUrl;
+    // Sempre l'immagine appena letta: corregge quelle sbagliate (es. versioni
+    // alternative), e la ripubblicazione la ricarica perché cambia la sorgente.
+    if (ris && immagineCartaValida(ris.immagineUrl)) out.immagineUrl = ris.immagineUrl;
   }
   out.updatedAt = ora;
   return out;
