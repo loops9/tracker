@@ -449,12 +449,12 @@ async function pubblicaVetrina() {
   const immagini = {};
 
   for (const c of vetrina) {
-    if (c.immagineFile && c.immagineFileSorgente === c.immagineUrl) {
-      immagini[c.id] = true;
+    if (!immagineCartaValida(c.immagineUrl)) {
+      avvisi.push(`${c.nome}: nessuna immagine`);
       continue;
     }
-    if (!c.immagineUrl) {
-      avvisi.push(`${c.nome}: nessuna immagine`);
+    if (c.immagineFile && c.immagineFileSorgente === c.immagineUrl) {
+      immagini[c.id] = true;
       continue;
     }
     const esito = await scaricaMiniatura(c.immagineUrl, VETRINA_IMG_LARGHEZZA);

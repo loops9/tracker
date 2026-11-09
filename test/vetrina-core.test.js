@@ -157,6 +157,14 @@ test("carta del tracker -> dati vetrina: codice ed espansione dall'URL", () => {
   assert.equal(box.espansione, "");
 });
 
+test("il logo di Cardmarket non vale come immagine della carta", () => {
+  assert.equal(core.immagineCartaValida("https://static.cardmarket.com/img/logos/cardmarket.png"), null);
+  assert.equal(core.immagineCartaValida("https://product-images.s3.cardmarket.com/1621/EB05/919534/919534.jpg"), "https://product-images.s3.cardmarket.com/1621/EB05/919534/919534.jpg");
+  assert.equal(core.immagineCartaValida(null), null);
+  const box = core.datiDaCartaTracciata({ link: "https://www.cardmarket.com/it/OnePiece/Products/Booster-Boxes/Romance-Dawn-Booster-Box", nome: "box", immagineUrl: "https://static.cardmarket.com/img/logos/cardmarket.png" });
+  assert.equal(box.immagineUrl, null);
+});
+
 test("carta del tracker -> prezzo di mercato dall'ultima rilevazione", () => {
   assert.deepEqual(core.mercatoDaCartaTracciata({ ultimaMedia3: 113.33, ultimeOfferte: 42, ultimaData: 7 }),
     { marketPrice: 113.33, marketSampleSize: 3, marketStato: "ok", marketAggiornatoIl: 7 });
