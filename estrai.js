@@ -116,4 +116,17 @@ async function estraiPrezzoMinimoItalia(filtroInfo) {
   };
 }
 
-if (typeof module !== "undefined") module.exports = { estraiPrezzoMinimoItalia };
+
+// Stato della pagina, per leggerla appena l'HTML è arrivato invece di
+// aspettare immagini e pubblicità ("complete"). Anche questa viene
+// iniettata con executeScript, quindi deve restare autosufficiente.
+function statoPaginaCardmarket() {
+  if (location.protocol === "about:" || document.readyState === "loading") return "caricamento";
+  const titolo = (document.title || "").toLowerCase();
+  const sfida =
+    /just a moment|attendere|checking your browser|un momento/.test(titolo) ||
+    document.querySelector("#challenge-running, #cf-challenge-running, [class*='cf-challenge']");
+  return sfida ? "sfida" : "pronta";
+}
+
+if (typeof module !== "undefined") module.exports = { estraiPrezzoMinimoItalia, statoPaginaCardmarket };

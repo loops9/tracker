@@ -101,6 +101,7 @@ function nuovaCartaVetrina(dati, ora) {
     lingua: dati.lingua || "Inglese",
     quantita: quantita > 0 ? quantita : 1,
     immagineUrl: dati.immagineUrl || null,
+    filtroInfo: dati.filtroInfo || null, // es. "PSA 10": vale anche per il prezzo di mercato
     marketPrice: null,
     marketSampleSize: 0,
     marketStato: "da aggiornare",
@@ -131,6 +132,39 @@ function applicaMercato(carta, ris, ora) {
   }
   out.updatedAt = ora;
   return out;
+}
+
+// Dati della vetrina ricavati da una carta del tracker (lista "carte"):
+// codice ed espansione dall'URL Cardmarket, prezzo di mercato dall'ultima
+// rilevazione (media3 è già la media dei 3 prezzi italiani più bassi).
+function datiDaCartaTracciata(carta) {
+  var parti = new URL(carta.link).pathname.split("/").filter(Boolean);
+  var ultimo = decodeURIComponent(parti[parti.length - 1] || "");
+  var codice = (ultimo.match(/([A-Z]{1,5}\d*-\d+)/) || [])[1] || "";
+  var iSingles = parti.indexOf("Singles");
+  var espansione = iSingles !== -1 && parti[iSingles + 1]
+    ? decodeURIComponent(parti[iSingles + 1]).replace(/-/g, " ")
+    : "";
+  return {
+    url: carta.link,
+    nome: carta.nome || "",
+    codice: codice,
+    espansione: espansione,
+    rarita: "",
+    lingua: /japanese/i.test(carta.link) ? "Giapponese" : "Inglese",
+    immagineUrl: carta.immagineUrl || null,
+    filtroInfo: carta.filtroInfo || null,
+  };
+}
+
+function mercatoDaCartaTracciata(carta) {
+  if (carta.ultimaMedia3 == null || carta.ultimoBloccato || carta.ultimoErrore) return null;
+  return {
+    marketPrice: carta.ultimaMedia3,
+    marketSampleSize: Math.min(3, carta.ultimeOfferte || 0),
+    marketStato: "ok",
+    marketAggiornatoIl: carta.ultimaData || null,
+  };
 }
 
 function percorsoImmagineVetrina(carta) {
@@ -194,6 +228,8 @@ if (typeof module !== "undefined") {
     nuovoIdVetrina: nuovoIdVetrina,
     nuovaCartaVetrina: nuovaCartaVetrina,
     applicaMercato: applicaMercato,
+    datiDaCartaTracciata: datiDaCartaTracciata,
+    mercatoDaCartaTracciata: mercatoDaCartaTracciata,
     percorsoImmagineVetrina: percorsoImmagineVetrina,
     costruisciVetrinaJson: costruisciVetrinaJson,
     base64Utf8: base64Utf8,

@@ -218,7 +218,7 @@ righe.addEventListener("click", async (e) => {
   }
   if (btn.dataset.azione === "aggiorna") {
     btn.disabled = true;
-    scriviStato("Aggiornamento del prezzo in corso (si apre una scheda di Cardmarket)…");
+    scriviStato("Aggiornamento del prezzo in corso…");
     const r = await chrome.runtime.sendMessage({ tipo: "aggiornaVetrina", id });
     scriviStato(r?.ok ? descriviEsito(r) : "Errore: " + (r?.errore || "riprova"), tipoEsito(r));
     btn.disabled = false;
@@ -240,7 +240,7 @@ function descriviEsito(r) {
 
 btnAggiorna.addEventListener("click", async () => {
   btnAggiorna.disabled = true;
-  scriviStato("Aggiornamento prezzi in corso: si aprono le schede di Cardmarket una alla volta, con una pausa tra l'una e l'altra. Lascia aperta questa pagina.");
+  scriviStato("Aggiornamento prezzi in corso: le pagine di Cardmarket si aprono in background, qualcuna alla volta: puoi continuare a lavorare.");
   const r = await chrome.runtime.sendMessage({ tipo: "aggiornaVetrina" });
   scriviStato(r?.ok ? descriviEsito(r) : "Errore: " + (r?.errore || "riprova"), tipoEsito(r));
   btnAggiorna.disabled = false;
@@ -264,7 +264,7 @@ chrome.storage.onChanged.addListener((cambi, area) => {
   if (area !== "local") return;
   if (cambi.vetrinaProgresso?.newValue?.inCorso) {
     const p = cambi.vetrinaProgresso.newValue;
-    scriviStato(`Aggiornamento prezzi: ${p.fatte + 1} di ${p.totale}…`);
+    scriviStato(`Aggiornamento prezzi: ${p.fatte} di ${p.totale} pagine lette…`);
   }
   if (cambi.vetrina || cambi.vetrinaPubblicataIl || cambi.githubOwner || cambi.githubRepo) ricarica();
 });

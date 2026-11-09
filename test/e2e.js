@@ -75,11 +75,15 @@ async function servFixture(route) {
 // Le schede aperte con chrome.tabs.create sfuggono a ctx.route: per lo
 // scraping dell'estensione le pagine Cardmarket vengono rimandate (regola
 // DNR di sessione) a questo server locale, che risponde con le fixture.
-function serviFixture() {
+// Il ritardo simula la rete: senza, ogni pagina finirebbe prima che parta
+// la successiva e il parallelismo non si vedrebbe.
+function serviFixture(ritardoMs) {
   const server = http.createServer((req, res) => {
     const file = fixturePer(new URL(req.url, "http://x").pathname);
-    res.writeHead(file ? 200 : 404, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(file ? fs.readFileSync(file) : "fixture mancante");
+    setTimeout(() => {
+      res.writeHead(file ? 200 : 404, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(file ? fs.readFileSync(file) : "fixture mancante");
+    }, ritardoMs || 0);
   });
   return new Promise((r) => server.listen(0, "127.0.0.1", () => r({ server, base: `http://127.0.0.1:${server.address().port}` })));
 }
@@ -107,12 +111,12 @@ async function testFixture(browser) {
 
   async function estrai(codice) {
     await page.goto(urlProdotto(codice, "?sellerCountry=17"));
-    for (const f of ["estrai.js", "vetrina-core.js", "vetrina-content.js"]) {
+    for (const f of ["estrai.js", "vetrina-core.js"]) {
       await page.addScriptTag({ path: path.join(RADICE, f) });
     }
     return page.evaluate(async () => {
       const r = await estraiPrezzoMinimoItalia(null);
-      return { ...r, mercato: calcolaMarketPrice(r.prezzi), dati: leggiDatiProdottoCardmarket(document, location) };
+      return { ...r, mercato: calcolaMarketPrice(r.prezzi), stato: statoPaginaCardmarket() };
     });
   }
 
@@ -121,8 +125,7 @@ async function testFixture(browser) {
   verifica(cinque.mercato.marketPrice === 2.17 && cinque.mercato.marketSampleSize === 3, "3+ inserzioni → media dei 3 più bassi = 2,17", cinque.mercato);
   verifica(cinque.prezzo === 2 && cinque.media3 === 2.17, "campi esistenti prezzo/media3 invariati", [cinque.prezzo, cinque.media3]);
   verifica(cinque.immagineUrl === CDN + "OP13/857338/857338.jpg", "immagine scelta per codice nell'alt", cinque.immagineUrl);
-  verifica(cinque.dati.nome === "Monkey.D.Luffy" && cinque.dati.codice === "OP01-024", "nome e codice dalla pagina", cinque.dati);
-  verifica(cinque.dati.espansione === "Romance Dawn" && cinque.dati.rarita === "Super Rare", "espansione e rarità (icona) dalla pagina", cinque.dati);
+  verifica(cinque.stato === "pronta", "pagina prodotto riconosciuta come pronta", cinque.stato);
 
   const due = await estrai("OP01-016");
   verifica(due.mercato.marketPrice === 4.63 && due.mercato.marketSampleSize === 2, "meno di 3 inserzioni → media di 2 = 4,63", due.mercato);
@@ -136,6 +139,7 @@ async function testFixture(browser) {
 
   const cf = await estrai("CF-0001");
   verifica(cf.bloccato === true && cf.prezzi === undefined, "sfida Cloudflare (\"Just a moment\") → bloccato", cf);
+  verifica(cf.stato === "sfida", "durante la sfida Cloudflare la pagina non è considerata pronta", cf.stato);
   const cf403 = await estrai("CF-0403");
   verifica(cf403.bloccato === true, "blocco Cloudflare 403 (pagina reale \"Attention Required!\") → bloccato, non \"zero inserzioni\"", cf403);
   const nr = await estrai("NR-0001");
@@ -213,7 +217,8 @@ async function testEstensione() {
   fs.rmSync(profilo, { recursive: true, force: true });
   const ctx = await chromium.launchPersistentContext(profilo, {
     channel: "chromium",
-    headless: true,
+    // E2E_GRAFICO=1 (con xvfb): Chrome con finestre vere invece di headless
+    headless: !process.env.E2E_GRAFICO,
     viewport: { width: 1280, height: 900 },
     args: [`--disable-extensions-except=${dir}`, `--load-extension=${dir}`],
   });
@@ -225,44 +230,86 @@ async function testEstensione() {
   await sw.evaluate(installaGitHubFinto);
   const vetrina = () => sw.evaluate(async () => (await chrome.storage.local.get("vetrina")).vetrina || []);
 
-  // --- pulsante "Metti in vetrina"
+  // --- carte del tracker (lista "carte"), come le avrebbe il Ledger
+  const miniatura = JSON.parse(fs.readFileSync(path.join(RADICE, "data.json"), "utf8")).carte.find((c) => c.immagine)?.immagine || null;
+  const ieri = Date.now() - 86400000;
+  const tracciata = (codice, nome, img, media3, offerte) => ({
+    nome, link: urlProdotto(codice), filtroInfo: null, quantita: 3, immagine: miniatura, immagineUrl: CDN + img,
+    ultimoPrezzo: media3 == null ? null : media3 - 0.17, ultimaMedia3: media3, ultimeOfferte: offerte,
+    ultimaData: ieri, ultimoErrore: null, ultimoBloccato: false,
+  });
+  const carteTracker = [
+    tracciata("OP01-024", "Luffy OP01-024", "OP13/857338/857338.jpg", 2.17, 5),
+    tracciata("OP01-016", "Nami OP01-016", "EB02/823515/823515.jpg", null, 0),
+    tracciata("OP05-119", "Luffy OP05-119", "OP15/879905/879905.jpg", null, 0),
+  ];
+  await sw.evaluate((carte) => chrome.storage.local.set({ carte, storico: [] }), carteTracker);
+
+  // --- Ledger servito in locale all'indirizzo vero (il content script lo riconosce)
+  await ctx.route("https://loops9.github.io/tracker/**", (route) => {
+    const p = new URL(route.request().url()).pathname.replace("/tracker/", "") || "index.html";
+    if (p === "data.json") {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ carte: carteTracker, storico: [], aggiornatoIl: ieri }) });
+    }
+    const file = path.join(RADICE, p);
+    if (!fs.existsSync(file)) return route.fulfill({ status: 404, body: "" });
+    route.fulfill({ path: file });
+  });
   const page = await ctx.newPage();
-  async function aggiungi(url, quantita, lingua) {
-    await page.goto(url);
-    const lancia = page.locator("#cm-tracker-vetrina .lancia");
-    await lancia.waitFor({ timeout: 10000 });
-    await lancia.click();
+  await page.goto("https://loops9.github.io/tracker/");
+  async function aggiungi(codice, quantita, lingua) {
+    await page.locator(`.tessera[data-link="${urlProdotto(codice)}"]`).click();
+    const pulsante = page.locator("#scheda a.apri[data-vetrina]");
+    await pulsante.waitFor({ timeout: 10000 });
+    await pulsante.click();
     const form = page.locator("#cm-tracker-vetrina form");
     await form.waitFor();
     await form.locator("input[name=quantita]").fill(String(quantita));
     if (lingua) await form.locator("select[name=lingua]").selectOption(lingua);
     return form;
   }
+  async function chiudiTutto() {
+    await page.keyboard.press("Escape"); // chiude il modulo
+    verifica(await page.locator("#velo").isVisible(), "Esc chiude il modulo ma lascia aperta la scheda del Ledger");
+    await page.keyboard.press("Escape"); // chiude la scheda del Ledger
+  }
 
-  let form = await aggiungi(urlProdotto("OP01-024", "?sellerCountry=17"), 2, "Inglese");
-  verifica(await form.locator("input[name=nome]").inputValue() === "Monkey.D.Luffy", "modulo precompilato con il nome");
-  verifica(await form.locator("input[name=codice]").inputValue() === "OP01-024", "modulo precompilato con il codice");
-  verifica((await form.locator("input[name=immagineUrl]").inputValue()).endsWith("857338.jpg"), "modulo precompilato con l'immagine");
-  await page.screenshot({ path: path.join(OUT, "cardmarket-modulo.png") });
+  let form = await aggiungi("OP01-024", 2, "Inglese");
+  verifica(await form.locator("input[name=nome]").inputValue() === "Luffy OP01-024", "Ledger: modulo precompilato con il nome del tracker");
+  verifica(await form.locator("input[name=codice]").inputValue() === "OP01-024", "Ledger: codice ricavato dall'URL");
+  verifica(/2,17 €/.test(await form.locator(".nota").textContent()), "Ledger: prezzo di mercato dall'ultimo controllo del tracker");
+  await page.screenshot({ path: path.join(OUT, "ledger-modulo.png") });
   await form.locator("button[type=submit]").click();
   await form.locator("[data-esito]").filter({ hasText: "Aggiunta" }).waitFor();
-  verifica(/2,17 €/.test(await form.locator("[data-esito]").textContent()), "pagina già filtrata sull'Italia → prezzo subito calcolato");
+  await chiudiTutto();
 
-  form = await aggiungi(urlProdotto("OP01-024"), 1, "Inglese");
+  form = await aggiungi("OP01-024", 1, "Inglese");
   await form.locator("button[type=submit]").click();
   await form.locator("[data-esito]").filter({ hasText: "già in vetrina" }).waitFor();
+  await chiudiTutto();
 
-  form = await aggiungi(urlProdotto("OP01-016"), 1, "Giapponese");
-  await form.locator("button[type=submit]").click();
-  await form.locator("[data-esito]").filter({ hasText: "Aggiorna prezzi" }).waitFor();
-  form = await aggiungi(urlProdotto("OP05-119"), 1);
+  form = await aggiungi("OP01-016", 1, "Giapponese");
+  verifica(/Aggiorna prezzi/.test(await form.locator(".nota").textContent()), "Ledger: senza prezzo recente lo dice");
   await form.locator("button[type=submit]").click();
   await form.locator("[data-esito]").filter({ hasText: "Aggiunta" }).waitFor();
+  await chiudiTutto();
+  form = await aggiungi("OP05-119", 1);
+  await form.locator("button[type=submit]").click();
+  await form.locator("[data-esito]").filter({ hasText: "Aggiunta" }).waitFor();
+  await chiudiTutto();
 
   let v = await vetrina();
   verifica(v.length === 3 && v[0].quantita === 3, "doppione (stesso URL, condizione, lingua) → quantità sommata", v.map((c) => c.quantita));
-  verifica(v.every((c) => c.url.startsWith("https://www.cardmarket.com/it/") && !c.url.includes("?")), "URL salvati puliti e in italiano", v.map((c) => c.url));
+  verifica(v[0].marketPrice === 2.17 && v[0].marketSampleSize === 3 && v[1].marketPrice === null, "prezzo di mercato ripreso dal tracker", v.map((c) => c.marketPrice));
   verifica(v[1].lingua === "Giapponese" && v[1].condizione === "NM", "condizione e lingua scelte nel modulo", v[1]);
+  verifica(v.every((c) => c.immagineUrl && c.immagineUrl.startsWith(CDN)), "URL immagine del CDN ripreso dal tracker", v.map((c) => c.immagineUrl));
+
+  // il pulsante non compare sulle pagine di Cardmarket
+  const cm = await ctx.newPage();
+  await cm.goto(urlProdotto("OP01-024"));
+  await cm.waitForTimeout(1000);
+  verifica(await cm.locator("#cm-tracker-vetrina").count() === 0, "nessun pulsante sulle pagine Cardmarket");
+  await cm.close();
 
   // --- pagina options
   const opt = await ctx.newPage();
@@ -283,8 +330,27 @@ async function testEstensione() {
   await riga(v[1].id).locator("input.prezzo").fill("");
   await riga(v[1].id).locator("input.prezzo").blur();
 
-  // --- aggiorna prezzi (apre le pagine finte una alla volta, con le pause vere)
-  const fixtureServer = await serviFixture();
+  // --- aggiorna prezzi: schede in parallelo, in background
+  const fixtureServer = await serviFixture(1500);
+  await sw.evaluate(() => {
+    const nuovo = () => ({ aperte: new Set(), max: 0, attive: 0, totali: 0, cambiScheda: 0 });
+    self.__schede = nuovo();
+    self.__nuovoConteggio = nuovo;
+    chrome.tabs.onCreated.addListener((t) => {
+      if (!/cardmarket\.com/.test(t.pendingUrl || t.url || "")) return;
+      const s = self.__schede;
+      s.aperte.add(t.id); s.totali++; s.max = Math.max(s.max, s.aperte.size);
+      if (t.active) s.attive++;
+    });
+    chrome.tabs.onRemoved.addListener((id) => self.__schede.aperte.delete(id));
+    // la scheda in primo piano non deve mai cambiare durante lo scraping
+    chrome.tabs.onActivated.addListener(() => self.__schede.cambiScheda++);
+  });
+  const leggiSchede = () => sw.evaluate(() => {
+    const s = self.__schede;
+    self.__schede = self.__nuovoConteggio();
+    return { max: s.max, attive: s.attive, totali: s.totali, cambiScheda: s.cambiScheda };
+  });
   await sw.evaluate((base) => chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [9001],
     addRules: [{
@@ -302,7 +368,21 @@ async function testEstensione() {
   verifica(v[0].marketPrice === 2.17 && v[0].customPrice === 3, "aggiornamento: mercato 2,17, prezzo personale non toccato", v[0]);
   verifica(v[1].marketPrice === 4.63 && v[1].marketSampleSize === 2, "aggiornamento: 2 inserzioni → 4,63 con marketSampleSize 2", v[1]);
   verifica(v[2].marketPrice === null && v[2].marketStato === "nessuna inserzione italiana", "aggiornamento: zero inserzioni segnalato", v[2]);
-  verifica(durata >= 3 * 5 + 2 * 4, "stesse pause dello scraping esistente (5 s dopo il caricamento + 4–9 s tra le carte)", durata);
+  let schede = await leggiSchede();
+  verifica(schede.max >= 2 && schede.totali === 3, "vetrina: più schede aperte contemporaneamente", schede);
+  verifica(schede.attive === 0 && schede.cambiScheda === 0, "vetrina: schede in background, la scheda in primo piano non cambia", schede);
+  verifica(durata < 10, "vetrina: 3 pagine da 1,5 s lette in parallelo in meno di 10 s (prima erano ~30 s)", durata);
+
+  // --- tracker: "Controlla ora" usa lo stesso scraping veloce
+  const inizioTracker = Date.now();
+  await sw.evaluate(() => controllaTutte());
+  const durataTracker = (Date.now() - inizioTracker) / 1000;
+  const carteDopo = await sw.evaluate(async () => (await chrome.storage.local.get("carte")).carte);
+  schede = await leggiSchede();
+  console.log(`      (controllo tracker: ${durataTracker.toFixed(1)} s)`);
+  verifica(carteDopo[0].ultimaMedia3 === 2.17 && carteDopo[0].ultimoPrezzo === 2 && carteDopo[1].ultimaMedia3 === 4.63 && carteDopo[2].ultimoPrezzo === null,
+    "tracker: prezzi letti correttamente", carteDopo.map((c) => [c.ultimoPrezzo, c.ultimaMedia3]));
+  verifica(schede.max >= 2 && schede.attive === 0 && schede.cambiScheda === 0 && durataTracker < 10, "tracker: in parallelo, in background, veloce", { ...schede, durataTracker });
 
   // Cloudflare blocca: il prezzo di mercato già noto resta
   sostituzioni["OP01-024"] = "cloudflare-403.html";
@@ -519,6 +599,10 @@ async function testComportamentoPagina(browser, sito) {
   await ledger.goto(base + "/index.html");
   await ledger.waitForFunction(() => document.querySelectorAll("img").length > 5, null, { timeout: 15000 });
   verifica(errori.length === 0, "index.html (Ledger) si carica senza errori con data.json", errori);
+  await ledger.locator(".tessera").first().click();
+  await ledger.locator("#scheda a.apri").waitFor();
+  verifica(await ledger.locator("#scheda a[data-vetrina]").count() === 0, "Ledger senza estensione (amici): nessun pulsante \"Metti in vetrina\"");
+  await ledger.keyboard.press("Escape");
   // il service worker del Ledger non deve intercettare la vetrina
   await ledger.waitForFunction(() => navigator.serviceWorker.controller || new Promise((r) => setTimeout(() => r(true), 3000)));
   await ledger.reload();

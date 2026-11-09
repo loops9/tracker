@@ -138,3 +138,34 @@ test("vetrina.json: campi pubblici, prezzo mostrato, carte senza prezzo escluse"
 test("base64Utf8: accenti", () => {
   assert.equal(Buffer.from(core.base64Utf8("Rarità €"), "base64").toString("utf8"), "Rarità €");
 });
+
+test("carta del tracker -> dati vetrina: codice ed espansione dall'URL", () => {
+  const d = core.datiDaCartaTracciata({
+    link: "https://www.cardmarket.com/it/OnePiece/Products/Singles/Romance-Dawn/Monkey-D-Luffy-OP01-024",
+    nome: "luffy op01", immagineUrl: "https://cdn/x.jpg", filtroInfo: "PSA 10",
+  });
+  assert.deepEqual(d, {
+    url: "https://www.cardmarket.com/it/OnePiece/Products/Singles/Romance-Dawn/Monkey-D-Luffy-OP01-024",
+    nome: "luffy op01", codice: "OP01-024", espansione: "Romance Dawn", rarita: "", lingua: "Inglese",
+    immagineUrl: "https://cdn/x.jpg", filtroInfo: "PSA 10",
+  });
+  const promo = core.datiDaCartaTracciata({ link: "https://www.cardmarket.com/it/OnePiece/Products/Singles/Promos-Japanese/MonkeyDL", nome: "x" });
+  assert.equal(promo.codice, "");
+  assert.equal(promo.espansione, "Promos Japanese");
+  assert.equal(promo.lingua, "Giapponese");
+  const box = core.datiDaCartaTracciata({ link: "https://www.cardmarket.com/it/OnePiece/Products/Booster-Boxes/Memorial-Collection-Booster-Box", nome: "eb03 box" });
+  assert.equal(box.espansione, "");
+});
+
+test("carta del tracker -> prezzo di mercato dall'ultima rilevazione", () => {
+  assert.deepEqual(core.mercatoDaCartaTracciata({ ultimaMedia3: 113.33, ultimeOfferte: 42, ultimaData: 7 }),
+    { marketPrice: 113.33, marketSampleSize: 3, marketStato: "ok", marketAggiornatoIl: 7 });
+  assert.equal(core.mercatoDaCartaTracciata({ ultimaMedia3: 5, ultimeOfferte: 2 }).marketSampleSize, 2);
+  assert.equal(core.mercatoDaCartaTracciata({ ultimaMedia3: null }), null);
+  assert.equal(core.mercatoDaCartaTracciata({ ultimaMedia3: 5, ultimoBloccato: true }), null);
+});
+
+test("nuova carta: conserva il filtro del tracker", () => {
+  const c = core.nuovaCartaVetrina({ url: "https://www.cardmarket.com/it/OnePiece/Products/Singles/X/Y", nome: "A", filtroInfo: "PSA 10" });
+  assert.equal(c.filtroInfo, "PSA 10");
+});

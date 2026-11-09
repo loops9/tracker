@@ -51,8 +51,9 @@ con valori letterali. Nessun risultato: il token viene sempre letto dallo storag
   costruzione di `vetrina.json`), caricata da service worker (`importScripts`), pagina options e test Node.
 - **Estrazione**: `estraiPrezzoMinimoItalia` spostata *senza modifiche di logica* in `estrai.js` (per
   poterla testare su fixture e riusarla nel content script); restituisce in più l'array `prezzi`.
-- **Pulsante "Metti in vetrina"**: content script su `cardmarket.com/*/OnePiece/Products/*`.
-- **Gestione**: `options.html/js`, con aggiornamento prezzi che riusa `controllaCarta` e le stesse pause.
+- **Pulsante "Metti in vetrina"**: content script sul Ledger (`loops9.github.io/tracker/`), nella
+  scheda di dettaglio di ogni carta. *(Prima versione: sulle pagine Cardmarket; spostato su richiesta.)*
+- **Gestione**: `options.html/js`, con aggiornamento prezzi che riusa `controllaCarta` (poi reso parallelo, vedi "Scraping veloce").
 - **Pubblicazione**: `github.js`, stessa Contents API ma con errori espliciti (token mancante o non
   valido, permessi, conflitto di sha con un nuovo tentativo). Le immagini vengono scaricate, ridotte a
   480px e committate in `vetrina/img/<id>.jpg`.
@@ -67,9 +68,9 @@ con valori letterali. Nessun risultato: il token viene sempre letto dallo storag
 | `vetrina-core.js` | funzioni pure: `calcolaMarketPrice`, `prezzoMostrato`, `scostamentoPct`, `applicaMercato` (non tocca mai `customPrice`), `costruisciVetrinaJson`… |
 | `estrai.js` | `estraiPrezzoMinimoItalia` spostata da `background.js`; in più restituisce `prezzi` e riconosce il blocco Cloudflare 403 (vedi sotto). |
 | `github.js` | Contents API con errori leggibili e un nuovo tentativo sul conflitto di sha. |
-| `vetrina-content.js` | pulsante "Metti in vetrina" + modulo (shadow DOM) sulle pagine prodotto. |
+| `ledger-content.js` | pulsante "Metti in vetrina" nella scheda di dettaglio del Ledger + modulo (shadow DOM); dati dalla lista `carte` del tracker. |
 | `options.html/css/js` | gestione: quantità, prezzo personale, venduta, rimozione, scostamento >20%, Aggiorna prezzi, Pubblica. |
-| `background.js` | `aggiornaVetrina`, `pubblicaVetrina`; `scaricaMiniatura` accetta la larghezza; regola Referer reinstallata anche all'avvio del browser. |
+| `background.js` | scraping veloce (vedi sotto), `aggiornaVetrina`, `pubblicaVetrina`; `scaricaMiniatura` accetta la larghezza; regola Referer reinstallata anche all'avvio del browser. |
 | `vetrina/` | pagina pubblica: `index.html`, `vetrina.css`, `vetrina.js`; l'estensione ci scrive `vetrina.json` e `img/`. |
 | `sw.js` | ignora `/vetrina/` (prima avrebbe servito la vetrina dalla cache). |
 
@@ -81,6 +82,21 @@ updatedAt` + interni `marketStato, marketAggiornatoIl, immagineFile, immagineFil
 condizione, lingua, quantità, prezzo finale, immagine relativa, venduta): niente URL Cardmarket,
 `marketPrice` o `customPrice`. Le carte senza alcun prezzo non vengono pubblicate e sono segnalate.
 
+### Scraping veloce (tracker e vetrina)
+La versione su GitHub fino al 9/11/2026 era quella lenta: una scheda **in primo piano** alla volta,
+attesa di `status: complete` (immagini e pubblicità comprese) + 5 s, pausa di 4–9 s tra le carte.
+Una versione più veloce esisteva solo sul PC ed è andata persa sovrascrivendo la cartella; è stata
+rifatta così:
+- `SCHEDE_PARALLELE = 4` schede insieme (`inParallelo`), sfasate di 0,3–1,2 s;
+- schede aperte con `active: false`: non prendono il focus e non cambiano la scheda corrente;
+- `leggiQuandoPronta`: ogni 250 ms chiede alla scheda `statoPaginaCardmarket()`; appena l'HTML è
+  arrivato (`readyState` diverso da `loading`) e non c'è una sfida Cloudflare, estrae. Timeout 45 s;
+- vale sia per "Controlla ora" (`controllaTutte`) sia per "Aggiorna prezzi" della vetrina.
+
+Provata anche una finestra separata ridotta a icona: con Chrome su Linux (Xvfb + openbox) la finestra
+viene ripristinata quando ci si apre una scheda, in modo non deterministico. Scartata: le schede in
+background sono l'unica soluzione affidabile. Su Windows/Mac non verificabile da qui.
+
 ### Bug trovato e corretto nell'estrazione esistente
 La pagina di blocco vero di Cloudflare ("Attention Required! | Cloudflare", 403) non veniva
 riconosciuta: zero righe → "nessuna inserzione". Nel tracker la carta mostrava "—" invece di
@@ -91,16 +107,18 @@ pagina sia qualunque pagina senza la scheda prodotto. La fixture `test/fixtures/
 ### Test
 - `npm test`: test unitari Node (calcolo, arrotondamento, JSON, link PayPal, ordinamento/ricerca, GitHub con fetch finto) + il vecchio `filtro.test.js`.
 - `npm install && npx playwright install chromium && npm run test:e2e`: estrazione su fixture in
-  Chromium; estensione vera caricata (pulsante, options, aggiornamento con le pause reali, blocco
+  Chromium; estensione vera caricata (pulsante, options, scraping in parallelo e in background, blocco
   Cloudflare, pubblicazione contro una GitHub API simulata, immagine reale dal CDN ridotta a 480px);
   pagina vetrina a 390/1280px, chiaro/scuro, stati vuoto/mancante/rotto; Ledger ancora funzionante.
   Screenshot in `test/output/` (ignorata da git).
 
 ### Limiti noti / da verificare dal vivo
-- Le fixture delle pagine prodotto sono **ricostruite**: i selettori di prezzo e paese sono quelli già
-  in uso (validati), ma quelli per nome/numero/espansione/rarità (`h1`, `dl dt/dd`) non sono stati
-  provati su Cardmarket vero. Nel modulo i campi sono comunque modificabili.
-- Il prezzo di mercato non filtra per condizione/lingua della carta (come da specifica).
+- Le fixture delle pagine prodotto sono **ricostruite** sui selettori già in uso (validati).
+- Le schede in background non risolvono le sfide Cloudflare peggio di quelle in primo piano? Non
+  verificabile dalla VPS: se molte carte risultano "bloccate", abbassare `SCHEDE_PARALLELE`.
+- Rarità non ricavabile dal tracker: va scritta a mano nel modulo (facoltativa).
+- Il prezzo di mercato non filtra per condizione/lingua della carta (come da specifica), ma usa il
+  filtro del tracker se c'è (es. "PSA 10"): la vetrina eredita `filtroInfo` dalla carta tracciata.
 - `sincronizzaGitHub` (data.json) continua a ignorare gli errori: si potrebbe passarla a `github.js`.
 - `filtro.js` resta non usato da `background.js`.
 - Il token è in chiaro in `chrome.storage.local`: usare un fine-grained token limitato a questo repo
@@ -109,18 +127,18 @@ pagina sia qualunque pagina senza la scheda prodotto. La fixture `test/fixtures/
 ### Manifest e permessi
 Verificato (9/11/2026): `manifest.json` è JSON valido, tutti i file citati (service worker, file
 caricati con `importScripts`, popup, options, icone, content script) esistono, e Chromium carica
-l'estensione senza errori (test e2e). **Nessun permesso e nessun host nuovo** rispetto a prima:
+l'estensione senza errori (test e2e). Nessun permesso nuovo in `permissions`/`host_permissions`;
+l'unico accesso in più è il content script sul Ledger:
 
 | Voce | Perché basta quello che c'era |
 |---|---|
 | `options_ui` | non è un permesso; registra la pagina di gestione. |
-| `content_scripts` su `https://www.cardmarket.com/*/OnePiece/Products/*` | già coperto da `https://*.cardmarket.com/*`; pattern stretto alle sole pagine prodotto One Piece. |
+| `content_scripts` su `https://loops9.github.io/tracker/*` (escluso `/tracker/vetrina/*`) | **unico accesso nuovo**: serve a mostrare "Metti in vetrina" nel Ledger. Limitato alla cartella del Ledger; non è in `host_permissions` e il content script non fa richieste di rete, legge solo `chrome.storage.local`. |
 | `storage` | lista `vetrina`, come `carte`. |
 | `tabs` + `scripting` | aggiornamento prezzi della vetrina: riusa `controllaCarta`. |
 | `declarativeNetRequest` | stessa regola Referer, per scaricare le immagini da pubblicare e mostrarle nelle options. |
 | `https://api.github.com/*` | pubblicazione di `vetrina/vetrina.json` e `vetrina/img/`. |
 
 Non toccati, ma riducibili in futuro: `alarms` serve solo a cancellare un vecchio allarme;
-`tabs` probabilmente non è necessario (`tabs.create/remove/onUpdated` funzionano senza, e l'URL della
-tab arriva già dal permesso host). Lasciati com'erano per non cambiare il comportamento esistente.
+`tabs` probabilmente non è necessario (`tabs.create/remove` funzionano senza). Lasciati com'erano per non cambiare il comportamento esistente.
 Solo la copia dell'estensione usata nei test e2e aggiunge `http://127.0.0.1/*` (server delle fixture).
