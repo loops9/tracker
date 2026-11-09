@@ -21,8 +21,20 @@ async function estraiPrezzoMinimoItalia(filtroInfo) {
     const sembraSfidaCloudflare =
       /just a moment|attendere|checking your browser|un momento/.test(titolo) ||
       document.querySelector("#challenge-running, #cf-challenge-running, [class*='cf-challenge']");
-    if (sembraSfidaCloudflare) {
+    // Blocco vero e proprio (403 "Attention Required! | Cloudflare"): non è
+    // una sfida che si risolve da sola, e senza questo controllo verrebbe
+    // scambiato per "nessuna inserzione".
+    const bloccoCloudflare =
+      /attention required|cloudflare|access denied|accesso negato/.test(titolo) ||
+      document.querySelector("#cf-wrapper, #cf-error-details, .cf-error-code");
+    if (sembraSfidaCloudflare || bloccoCloudflare) {
       return { prezzo: null, media3: null, nOfferte: 0, immagineUrl: null, immagineErrore: "pagina bloccata", bloccato: true };
+    }
+    // Zero righe valgono "nessuna inserzione" solo se la pagina è davvero una
+    // scheda prodotto; altrimenti (errore, manutenzione, login) non so nulla.
+    const paginaProdotto = document.querySelector(".info-list-container, dl.labeled, .page-title-container h1");
+    if (!paginaProdotto) {
+      return { prezzo: null, media3: null, nOfferte: 0, immagineUrl: null, immagineErrore: "pagina non riconosciuta", bloccato: true };
     }
   }
 
