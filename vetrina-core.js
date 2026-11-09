@@ -134,6 +134,13 @@ function applicaMercato(carta, ris, ora) {
   return out;
 }
 
+// Il tracker, quando non trova l'immagine di un prodotto (es. box sigillati),
+// salva il logo di Cardmarket: per la vetrina equivale a nessuna immagine.
+function immagineCartaValida(url) {
+  if (!url || /static\.cardmarket\.com\/img\/logos\//i.test(url)) return null;
+  return url;
+}
+
 // Dati della vetrina ricavati da una carta del tracker (lista "carte"):
 // codice ed espansione dall'URL Cardmarket, prezzo di mercato dall'ultima
 // rilevazione (media3 è già la media dei 3 prezzi italiani più bassi).
@@ -152,7 +159,7 @@ function datiDaCartaTracciata(carta) {
     espansione: espansione,
     rarita: "",
     lingua: /japanese/i.test(carta.link) ? "Giapponese" : "Inglese",
-    immagineUrl: carta.immagineUrl || null,
+    immagineUrl: immagineCartaValida(carta.immagineUrl),
     filtroInfo: carta.filtroInfo || null,
   };
 }
@@ -228,6 +235,7 @@ if (typeof module !== "undefined") {
     nuovoIdVetrina: nuovoIdVetrina,
     nuovaCartaVetrina: nuovaCartaVetrina,
     applicaMercato: applicaMercato,
+    immagineCartaValida: immagineCartaValida,
     datiDaCartaTracciata: datiDaCartaTracciata,
     mercatoDaCartaTracciata: mercatoDaCartaTracciata,
     percorsoImmagineVetrina: percorsoImmagineVetrina,
