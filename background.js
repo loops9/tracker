@@ -1,4 +1,4 @@
-importScripts("estrai.js");
+importScripts("estrai.js", "vetrina-core.js", "github.js");
 
 const ALARM_NAME = "controlloGiornaliero";
 const RITARDO_MIN_MS = 4000;
@@ -17,6 +17,13 @@ chrome.runtime.onInstalled.addListener(() => {
   configuraRegolaReferer();
 });
 
+// Le regole di sessione spariscono alla chiusura del browser: le reinstallo
+// all'avvio, così le immagini di Cardmarket si caricano anche nella pagina
+// di gestione vetrina.
+chrome.runtime.onStartup.addListener(() => {
+  configuraRegolaReferer();
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.tipo === "controllaOra") {
     controllaTutte().then(() => sendResponse({ ok: true }));
@@ -27,6 +34,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then((r) => sendResponse(r))
       .catch((e) => sendResponse({ ok: false, errore: String(e?.message || e) }));
     return true;
+  }
+  if (msg?.tipo === "aggiornaVetrina") {
+    aggiornaVetrina(msg.id || null)
+      .then((r) => sendResponse({ ok: true, ...r }))
+      .catch((e) => sendResponse({ ok: false, errore: String(e?.message || e) }));
+    return true;
+  }
+  if (msg?.tipo === "pubblicaVetrina") {
+    pubblicaVetrina()
+      .then((r) => sendResponse({ ok: true, ...r }))
+      .catch((e) => sendResponse({ ok: false, errore: String(e?.message || e) }));
+    return true;
+  }
+  if (msg?.tipo === "preparaImmagini") {
+    configuraRegolaReferer().then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  if (msg?.tipo === "apriOpzioni") {
+    chrome.runtime.openOptionsPage();
+    return;
   }
   if (msg?.tipo === "sincronizzaOra") {
     sincronizzaGitHub()
@@ -160,7 +187,7 @@ async function configuraRegolaReferer() {
 // Scarica l'immagine della carta e la trasforma in una miniatura JPEG
 // incorporata come data URL: la pagina su GitHub Pages non deve più
 // chiedere nulla ai server di Cardmarket. Restituisce { dataUrl, motivo }.
-async function scaricaMiniatura(url) {
+async function scaricaMiniatura(url, larghezza = 160) {
   if (!url) return { dataUrl: null, motivo: "nessun url immagine" };
   try {
     const risp = await fetch(url, { credentials: "include", cache: "no-cache" });
@@ -168,7 +195,6 @@ async function scaricaMiniatura(url) {
     const blob = await risp.blob();
     const bitmap = await createImageBitmap(blob);
 
-    const larghezza = 160;
     const scala = larghezza / bitmap.width;
     const canvas = new OffscreenCanvas(larghezza, Math.max(1, Math.round(bitmap.height * scala)));
     const ctx = canvas.getContext("2d");
@@ -317,4 +343,132 @@ async function salvaRisultati(risultati) {
     carte: carteAggiornate,
     storico: [...storico, ...nuoveRigheStorico],
   });
+}
+
+// ------------------------------------------------------------------ vetrina
+//
+// La vetrina è una lista separata dalle carte tracciate (chiave "vetrina").
+// Ogni scrittura rilegge la lista e modifica solo la carta interessata, così
+// un aggiornamento prezzi lungo non cancella le modifiche fatte nel frattempo
+// dalla pagina options.
+
+async function modificaCartaVetrina(id, modifica) {
+  const { vetrina = [] } = await chrome.storage.local.get("vetrina");
+  const i = vetrina.findIndex((c) => c.id === id);
+  if (i === -1) return null;
+  vetrina[i] = modifica(vetrina[i]);
+  await chrome.storage.local.set({ vetrina });
+  return vetrina[i];
+}
+
+let vetrinaInAggiornamento = false;
+
+// Aggiorna il prezzo di mercato di tutte le carte non vendute (o di una
+// sola, con id). Le carte con lo stesso URL prodotto condividono una sola
+// visita alla pagina. Stesse pause del controllo delle carte tracciate.
+async function aggiornaVetrina(soloId) {
+  if (vetrinaInAggiornamento) throw new Error("aggiornamento prezzi già in corso");
+  vetrinaInAggiornamento = true;
+  try {
+    await configuraRegolaReferer();
+    const { vetrina = [] } = await chrome.storage.local.get("vetrina");
+    const daFare = vetrina.filter((c) => (soloId ? c.id === soloId : !c.sold));
+    const urls = [...new Set(daFare.map((c) => c.url))];
+    const esito = { aggiornate: 0, senzaInserzioni: 0, bloccate: 0, errori: 0 };
+
+    for (let n = 0; n < urls.length; n++) {
+      const url = urls[n];
+      await chrome.storage.local.set({ vetrinaProgresso: { fatte: n, totale: urls.length, inCorso: true } });
+
+      let ris;
+      try {
+        ris = await controllaCarta(url, null);
+      } catch (e) {
+        ris = { errore: String(e?.message || e) };
+      }
+      if (ris.errore) esito.errori++;
+      else if (ris.bloccato) esito.bloccate++;
+      else if (!ris.prezzi?.length) esito.senzaInserzioni++;
+      else esito.aggiornate++;
+
+      const ora = Date.now();
+      for (const c of daFare.filter((x) => x.url === url)) {
+        await modificaCartaVetrina(c.id, (attuale) => applicaMercato(attuale, ris, ora));
+      }
+      if (n < urls.length - 1) {
+        await attesa(RITARDO_MIN_MS + Math.random() * (RITARDO_MAX_MS - RITARDO_MIN_MS));
+      }
+    }
+    await chrome.storage.local.set({ vetrinaProgresso: { fatte: urls.length, totale: urls.length, inCorso: false } });
+    return esito;
+  } finally {
+    vetrinaInAggiornamento = false;
+  }
+}
+
+function dataUrlInBase64(dataUrl) {
+  return String(dataUrl).slice(String(dataUrl).indexOf(",") + 1);
+}
+
+// Pubblica vetrina/vetrina.json e le immagini in vetrina/img/. Le immagini
+// vanno nel repo perché il CDN di Cardmarket rifiuta le richieste che non
+// arrivano da cardmarket.com: da GitHub Pages non si caricherebbero.
+async function pubblicaVetrina() {
+  const cfg = await chrome.storage.local.get(["githubOwner", "githubRepo", "githubToken"]);
+  await verificaAccessoGitHub(cfg);
+  await configuraRegolaReferer();
+
+  const avvisi = [];
+  const { vetrina = [] } = await chrome.storage.local.get("vetrina");
+  const immagini = {};
+
+  for (const c of vetrina) {
+    if (c.immagineFile && c.immagineFileSorgente === c.immagineUrl) {
+      immagini[c.id] = true;
+      continue;
+    }
+    if (!c.immagineUrl) {
+      avvisi.push(`${c.nome}: nessuna immagine`);
+      continue;
+    }
+    const esito = await scaricaMiniatura(c.immagineUrl, VETRINA_IMG_LARGHEZZA);
+    if (!esito.dataUrl) {
+      avvisi.push(`${c.nome}: immagine non scaricata (${esito.motivo})`);
+      continue;
+    }
+    const path = percorsoImmagineVetrina(c);
+    await scriviFileGitHub(cfg, path, dataUrlInBase64(esito.dataUrl), `Vetrina: immagine ${c.nome}`);
+    await modificaCartaVetrina(c.id, (attuale) => ({
+      ...attuale,
+      immagineFile: path,
+      immagineFileSorgente: c.immagineUrl,
+    }));
+    immagini[c.id] = true;
+  }
+
+  const { dati, senzaPrezzo } = costruisciVetrinaJson(vetrina, immagini, Date.now());
+  senzaPrezzo.forEach((c) => avvisi.push(`${c.nome}: nessun prezzo, non pubblicata`));
+  await scriviFileGitHub(
+    cfg,
+    `${VETRINA_CARTELLA}/vetrina.json`,
+    base64Utf8(JSON.stringify(dati, null, 2)),
+    `Vetrina aggiornata ${dati.aggiornatoIl}`
+  );
+
+  // Immagini di carte tolte dalla vetrina: le rimuovo dal repo. Un errore
+  // qui non invalida la pubblicazione, che è già avvenuta.
+  try {
+    const presenti = await elencaCartellaGitHub(cfg, `${VETRINA_CARTELLA}/img`);
+    const usate = new Set(vetrina.filter((c) => immagini[c.id]).map((c) => percorsoImmagineVetrina(c)));
+    for (const f of presenti) {
+      if (f.type === "file" && !usate.has(f.path)) {
+        await eliminaFileGitHub(cfg, f.path, f.sha, `Vetrina: rimuovi ${f.name}`);
+      }
+    }
+  } catch (e) {
+    avvisi.push("pulizia immagini vecchie non riuscita: " + (e?.message || e));
+  }
+
+  await chrome.storage.local.set({ vetrinaPubblicataIl: Date.now() });
+  return { pubblicate: dati.carte.length, avvisi, url: urlPagesVetrina(cfg) };
 }
