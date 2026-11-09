@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vetrina – Cardmarket Tracker</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header>
+    <h1>Vetrina</h1>
+    <p class="sotto">Le carte che vendi. Il prezzo mostrato è quello personale se l'hai impostato, altrimenti il prezzo di mercato (media dei 3 prezzi più bassi dei venditori italiani).</p>
+  </header>
+
+  <div class="barra">
+    <button id="btnAggiorna">Aggiorna prezzi</button>
+    <button id="btnPubblica" class="primario">Pubblica vetrina</button>
+    <a id="linkVetrina" target="_blank" rel="noopener" hidden>Apri la vetrina pubblicata ↗</a>
+    <span id="riepilogo" class="tenue"></span>
+  </div>
+  <div id="stato" role="status" aria-live="polite"></div>
+
+  <div class="contenitore-tabella">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Carta</th>
+          <th class="num">Qtà</th>
+          <th class="num">Mercato</th>
+          <th class="num">Prezzo personale</th>
+          <th class="num">Scost.</th>
+          <th class="num">In vetrina</th>
+          <th>Venduta</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="righe"></tbody>
+    </table>
+  </div>
+  <p class="tenue piccolo">Per aggiungere carte apri una pagina prodotto One Piece su Cardmarket e usa il pulsante "Metti in vetrina" in basso a destra. Lo scostamento è evidenziato quando supera il <span id="soglia"></span>%.</p>
+
+  <details id="impostazioni">
+    <summary>Impostazioni GitHub</summary>
+    <p class="tenue piccolo">Le stesse del popup: servono sia per data.json sia per la vetrina. Il token resta in chrome.storage.local su questo computer; deve avere il permesso di scrittura sui contenuti del repository.</p>
+    <div class="campi">
+      <label>Utente <input id="inputGithubOwner" autocomplete="off"></label>
+      <label>Repository <input id="inputGithubRepo" autocomplete="off"></label>
+      <label>Token <input id="inputGithubToken" type="password" autocomplete="off"></label>
+      <button id="btnSalvaImpostazioni">Salva</button>
+    </div>
+  </details>
+
+  <script src="vetrina-core.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

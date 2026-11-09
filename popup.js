@@ -237,6 +237,10 @@ document.getElementById("inputImporta").addEventListener("change", async (e) => 
   e.target.value = "";
 });
 
+document.getElementById("btnVetrina").addEventListener("click", () => {
+  chrome.runtime.openOptionsPage();
+});
+
 document.getElementById("btnImpostazioni").addEventListener("click", async () => {
   const container = document.getElementById("impostazioniContainer");
   const visibile = container.style.display !== "none";
