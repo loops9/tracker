@@ -1,3 +1,5 @@
+importScripts("estrai.js", "vetrina-core.js", "github.js");
+
 const ALARM_NAME = "controlloGiornaliero";
 const RITARDO_MIN_MS = 4000;
 const RITARDO_MAX_MS = 9000;
@@ -15,6 +17,13 @@ chrome.runtime.onInstalled.addListener(() => {
   configuraRegolaReferer();
 });
 
+// Le regole di sessione spariscono alla chiusura del browser: le reinstallo
+// all'avvio, così le immagini di Cardmarket si caricano anche nella pagina
+// di gestione vetrina.
+chrome.runtime.onStartup.addListener(() => {
+  configuraRegolaReferer();
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.tipo === "controllaOra") {
     controllaTutte().then(() => sendResponse({ ok: true }));
@@ -25,6 +34,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then((r) => sendResponse(r))
       .catch((e) => sendResponse({ ok: false, errore: String(e?.message || e) }));
     return true;
+  }
+  if (msg?.tipo === "aggiornaVetrina") {
+    aggiornaVetrina(msg.id || null)
+      .then((r) => sendResponse({ ok: true, ...r }))
+      .catch((e) => sendResponse({ ok: false, errore: String(e?.message || e) }));
+    return true;
+  }
+  if (msg?.tipo === "pubblicaVetrina") {
+    pubblicaVetrina()
+      .then((r) => sendResponse({ ok: true, ...r }))
+      .catch((e) => sendResponse({ ok: false, errore: String(e?.message || e) }));
+    return true;
+  }
+  if (msg?.tipo === "preparaImmagini") {
+    configuraRegolaReferer().then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  if (msg?.tipo === "apriOpzioni") {
+    chrome.runtime.openOptionsPage();
+    return;
   }
   if (msg?.tipo === "sincronizzaOra") {
     sincronizzaGitHub()
@@ -158,7 +187,7 @@ async function configuraRegolaReferer() {
 // Scarica l'immagine della carta e la trasforma in una miniatura JPEG
 // incorporata come data URL: la pagina su GitHub Pages non deve più
 // chiedere nulla ai server di Cardmarket. Restituisce { dataUrl, motivo }.
-async function scaricaMiniatura(url) {
+async function scaricaMiniatura(url, larghezza = 160) {
   if (!url) return { dataUrl: null, motivo: "nessun url immagine" };
   try {
     const risp = await fetch(url, { credentials: "include", cache: "no-cache" });
@@ -166,7 +195,6 @@ async function scaricaMiniatura(url) {
     const blob = await risp.blob();
     const bitmap = await createImageBitmap(blob);
 
-    const larghezza = 160;
     const scala = larghezza / bitmap.width;
     const canvas = new OffscreenCanvas(larghezza, Math.max(1, Math.round(bitmap.height * scala)));
     const ctx = canvas.getContext("2d");
@@ -226,103 +254,6 @@ function controllaCarta(url, filtroInfo) {
       chrome.tabs.onUpdated.addListener(listener);
     });
   });
-}
-
-// Eseguita DENTRO la pagina Cardmarket (stessa identica logica validata
-// nello script Python: stessi selettori sull'HTML reale della tabella).
-// filtroInfo (opzionale): se impostato, conta solo le inserzioni il cui
-// campo "informazioni" del venditore contiene questo testo (es. "PSA 10").
-// L'immagine viene scaricata QUI, dal contesto della pagina: così la
-// richiesta parte con il Referer di Cardmarket e la protezione hotlink
-// del loro CDN non la rifiuta (dal service worker risponde 403).
-async function estraiPrezzoMinimoItalia(filtroInfo) {
-  const righe = document.querySelectorAll(".article-row");
-
-  if (righe.length === 0) {
-    const titolo = (document.title || "").toLowerCase();
-    const sembraSfidaCloudflare =
-      /just a moment|attendere|checking your browser|un momento/.test(titolo) ||
-      document.querySelector("#challenge-running, #cf-challenge-running, [class*='cf-challenge']");
-    if (sembraSfidaCloudflare) {
-      return { prezzo: null, media3: null, nOfferte: 0, immagineUrl: null, immagineErrore: "pagina bloccata", bloccato: true };
-    }
-  }
-
-  const normalizza = (s) => (s || "").toLowerCase().replace(/[\s\-_]/g, "");
-  const termini = filtroInfo
-    ? String(filtroInfo).split(/[|,]/).map(normalizza).filter(Boolean)
-    : [];
-
-  const prezzi = [];
-  righe.forEach((riga) => {
-    // Il paese del venditore sta in "Locazione dell'oggetto: <paese>". Cardmarket
-    // lo mette a volte in aria-label, a volte (pagine promo, tooltip Bootstrap)
-    // nell'attributo title: controllo entrambi.
-    const elPaese = riga.querySelector(
-      "[aria-label^='Locazione'], [title^='Locazione'], [data-original-title^='Locazione']"
-    );
-    const elPrezzo = riga.querySelector(".col-offer .price-container span.color-primary");
-    if (!elPaese || !elPrezzo) return;
-
-    const etichettaPaese =
-      elPaese.getAttribute("aria-label") ||
-      elPaese.getAttribute("title") ||
-      elPaese.getAttribute("data-original-title") ||
-      "";
-    const paese = etichettaPaese.split(":").pop().trim();
-    if (paese.toLowerCase() !== "italia") return;
-
-    if (termini.length) {
-      const elCommento = riga.querySelector(".product-comments");
-      const commentoNorm = normalizza(elCommento ? elCommento.textContent : "");
-      if (!termini.some((t) => commentoNorm.includes(t))) return;
-    }
-
-    // Prezzo in formato europeo: "6.199,00 €". Il punto è separatore delle
-    // migliaia (vanno rimossi TUTTI), la virgola è il separatore decimale.
-    const soloNumero = elPrezzo.textContent.replace(/[^\d.,]/g, "");
-    const testo = soloNumero.replace(/\./g, "").replace(",", ".");
-    const valore = parseFloat(testo);
-    if (!Number.isNaN(valore)) prezzi.push(valore);
-  });
-
-  // Immagine della carta: la pagina può avere un carosello con più carte,
-  // quindi scelgo l'immagine il cui alt contiene il codice della carta
-  // (es. "OP16-098") estratto dall'URL della pagina stessa.
-  const segmento = decodeURIComponent((location.pathname.split("/").filter(Boolean).pop() || ""));
-  const matchCodice = segmento.match(/([A-Z]{1,5}\d*-\d+)/);
-  const codice = matchCodice ? matchCodice[1].toLowerCase() : null;
-
-  let urlImg = null;
-  const candidate = Array.from(document.querySelectorAll(".card-image img"));
-
-  if (codice && candidate.length) {
-    const conCodice = candidate.filter((img) => (img.alt || "").toLowerCase().includes(codice));
-    const scelta = conCodice.find((img) => img.classList.contains("is-front")) || conCodice[0];
-    if (scelta) urlImg = scelta.currentSrc || scelta.src || null;
-  }
-  if (!urlImg) {
-    const og = document.querySelector("meta[property='og:image']");
-    urlImg = (og && og.getAttribute("content")) || null;
-  }
-  if (!urlImg && candidate.length) {
-    urlImg = candidate[0].currentSrc || candidate[0].src || null;
-  }
-
-  prezzi.sort((a, b) => a - b);
-  const primi3 = prezzi.slice(0, 3);
-  const media3 = primi3.length
-    ? Math.round((primi3.reduce((s, v) => s + v, 0) / primi3.length) * 100) / 100
-    : null;
-
-  return {
-    prezzo: prezzi.length ? prezzi[0] : null,
-    media3,
-    nOfferte: prezzi.length,
-    immagineUrl: urlImg,
-    immagineErrore: urlImg ? null : "immagine non trovata nella pagina",
-    bloccato: false,
-  };
 }
 
 async function sincronizzaGitHub() {
@@ -412,4 +343,132 @@ async function salvaRisultati(risultati) {
     carte: carteAggiornate,
     storico: [...storico, ...nuoveRigheStorico],
   });
+}
+
+// ------------------------------------------------------------------ vetrina
+//
+// La vetrina è una lista separata dalle carte tracciate (chiave "vetrina").
+// Ogni scrittura rilegge la lista e modifica solo la carta interessata, così
+// un aggiornamento prezzi lungo non cancella le modifiche fatte nel frattempo
+// dalla pagina options.
+
+async function modificaCartaVetrina(id, modifica) {
+  const { vetrina = [] } = await chrome.storage.local.get("vetrina");
+  const i = vetrina.findIndex((c) => c.id === id);
+  if (i === -1) return null;
+  vetrina[i] = modifica(vetrina[i]);
+  await chrome.storage.local.set({ vetrina });
+  return vetrina[i];
+}
+
+let vetrinaInAggiornamento = false;
+
+// Aggiorna il prezzo di mercato di tutte le carte non vendute (o di una
+// sola, con id). Le carte con lo stesso URL prodotto condividono una sola
+// visita alla pagina. Stesse pause del controllo delle carte tracciate.
+async function aggiornaVetrina(soloId) {
+  if (vetrinaInAggiornamento) throw new Error("aggiornamento prezzi già in corso");
+  vetrinaInAggiornamento = true;
+  try {
+    await configuraRegolaReferer();
+    const { vetrina = [] } = await chrome.storage.local.get("vetrina");
+    const daFare = vetrina.filter((c) => (soloId ? c.id === soloId : !c.sold));
+    const urls = [...new Set(daFare.map((c) => c.url))];
+    const esito = { aggiornate: 0, senzaInserzioni: 0, bloccate: 0, errori: 0 };
+
+    for (let n = 0; n < urls.length; n++) {
+      const url = urls[n];
+      await chrome.storage.local.set({ vetrinaProgresso: { fatte: n, totale: urls.length, inCorso: true } });
+
+      let ris;
+      try {
+        ris = await controllaCarta(url, null);
+      } catch (e) {
+        ris = { errore: String(e?.message || e) };
+      }
+      if (ris.errore) esito.errori++;
+      else if (ris.bloccato) esito.bloccate++;
+      else if (!ris.prezzi?.length) esito.senzaInserzioni++;
+      else esito.aggiornate++;
+
+      const ora = Date.now();
+      for (const c of daFare.filter((x) => x.url === url)) {
+        await modificaCartaVetrina(c.id, (attuale) => applicaMercato(attuale, ris, ora));
+      }
+      if (n < urls.length - 1) {
+        await attesa(RITARDO_MIN_MS + Math.random() * (RITARDO_MAX_MS - RITARDO_MIN_MS));
+      }
+    }
+    await chrome.storage.local.set({ vetrinaProgresso: { fatte: urls.length, totale: urls.length, inCorso: false } });
+    return esito;
+  } finally {
+    vetrinaInAggiornamento = false;
+  }
+}
+
+function dataUrlInBase64(dataUrl) {
+  return String(dataUrl).slice(String(dataUrl).indexOf(",") + 1);
+}
+
+// Pubblica vetrina/vetrina.json e le immagini in vetrina/img/. Le immagini
+// vanno nel repo perché il CDN di Cardmarket rifiuta le richieste che non
+// arrivano da cardmarket.com: da GitHub Pages non si caricherebbero.
+async function pubblicaVetrina() {
+  const cfg = await chrome.storage.local.get(["githubOwner", "githubRepo", "githubToken"]);
+  await verificaAccessoGitHub(cfg);
+  await configuraRegolaReferer();
+
+  const avvisi = [];
+  const { vetrina = [] } = await chrome.storage.local.get("vetrina");
+  const immagini = {};
+
+  for (const c of vetrina) {
+    if (c.immagineFile && c.immagineFileSorgente === c.immagineUrl) {
+      immagini[c.id] = true;
+      continue;
+    }
+    if (!c.immagineUrl) {
+      avvisi.push(`${c.nome}: nessuna immagine`);
+      continue;
+    }
+    const esito = await scaricaMiniatura(c.immagineUrl, VETRINA_IMG_LARGHEZZA);
+    if (!esito.dataUrl) {
+      avvisi.push(`${c.nome}: immagine non scaricata (${esito.motivo})`);
+      continue;
+    }
+    const path = percorsoImmagineVetrina(c);
+    await scriviFileGitHub(cfg, path, dataUrlInBase64(esito.dataUrl), `Vetrina: immagine ${c.nome}`);
+    await modificaCartaVetrina(c.id, (attuale) => ({
+      ...attuale,
+      immagineFile: path,
+      immagineFileSorgente: c.immagineUrl,
+    }));
+    immagini[c.id] = true;
+  }
+
+  const { dati, senzaPrezzo } = costruisciVetrinaJson(vetrina, immagini, Date.now());
+  senzaPrezzo.forEach((c) => avvisi.push(`${c.nome}: nessun prezzo, non pubblicata`));
+  await scriviFileGitHub(
+    cfg,
+    `${VETRINA_CARTELLA}/vetrina.json`,
+    base64Utf8(JSON.stringify(dati, null, 2)),
+    `Vetrina aggiornata ${dati.aggiornatoIl}`
+  );
+
+  // Immagini di carte tolte dalla vetrina: le rimuovo dal repo. Un errore
+  // qui non invalida la pubblicazione, che è già avvenuta.
+  try {
+    const presenti = await elencaCartellaGitHub(cfg, `${VETRINA_CARTELLA}/img`);
+    const usate = new Set(vetrina.filter((c) => immagini[c.id]).map((c) => percorsoImmagineVetrina(c)));
+    for (const f of presenti) {
+      if (f.type === "file" && !usate.has(f.path)) {
+        await eliminaFileGitHub(cfg, f.path, f.sha, `Vetrina: rimuovi ${f.name}`);
+      }
+    }
+  } catch (e) {
+    avvisi.push("pulizia immagini vecchie non riuscita: " + (e?.message || e));
+  }
+
+  await chrome.storage.local.set({ vetrinaPubblicataIl: Date.now() });
+  return { pubblicate: dati.carte.length, avvisi, url: urlPagesVetrina(cfg) };
 }

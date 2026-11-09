@@ -45,6 +45,10 @@ self.addEventListener('fetch', function (e) {
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  // La vetrina (cartella /vetrina/) è una pagina a sé: niente cache, così chi
+  // ha aperto anche il Ledger non vede prezzi o carte vendute vecchie.
+  if (url.pathname.indexOf('/vetrina/') !== -1) return;
+
   // Prezzi: prima la rete (sono il dato che deve essere fresco), la copia
   // salvata resta come rete di sicurezza quando si è offline.
   if (url.pathname.indexOf('data.json') !== -1) {
