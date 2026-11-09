@@ -1,0 +1,84 @@
+{
+  "versione": 1,
+  "aggiornatoIl": "2026-11-09T10:07:39.698Z",
+  "carte": [
+    {
+      "id": "cmw92pb4f1jm4i",
+      "nome": "Baby 5",
+      "codice": "EB05-004",
+      "espansione": "Heroines Edition Vol2",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 7,
+      "immagine": "img/cmw92pb4f1jm4i.jpg",
+      "venduta": false
+    },
+    {
+      "id": "cmw92ps871a3hq",
+      "nome": "Oden Haki",
+      "codice": "ST32-002",
+      "espansione": "OP17",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 94.98,
+      "immagine": "img/cmw92ps871a3hq.jpg",
+      "venduta": false
+    },
+    {
+      "id": "cmw92yupc1t0fl",
+      "nome": "Cavendish alt",
+      "codice": "OP10-045",
+      "espansione": "Royal Blood",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 7.2,
+      "immagine": "img/cmw92yupc1t0fl.jpg",
+      "venduta": false
+    },
+    {
+      "id": "cmw92yyl89vud3",
+      "nome": "Gloriosa eb05",
+      "codice": "EB05-052",
+      "espansione": "Heroines Edition Vol2",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 13.17,
+      "immagine": "img/cmw92yyl89vud3.jpg",
+      "venduta": false
+    },
+    {
+      "id": "cmw92z7cbc5ocd",
+      "nome": "boa prb",
+      "codice": "PRB02-017",
+      "espansione": "The Best Vol2",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 47.3,
+      "immagine": "img/cmw92z7cbc5ocd.jpg",
+      "venduta": false
+    },
+    {
+      "id": "cmw9320gxw0gy1",
+      "nome": "box op01",
+      "codice": "",
+      "espansione": "",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 1116.67,
+      "immagine": "img/cmw9320gxw0gy1.jpg",
+      "venduta": false
+    }
+  ]
+}
