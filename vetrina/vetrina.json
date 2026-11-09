@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "aggiornatoIl": "2026-11-09T10:49:52.844Z",
+  "aggiornatoIl": "2026-11-09T11:21:10.902Z",
   "carte": [
     {
       "id": "cmw92ps871a3hq",
@@ -182,6 +182,19 @@
       "quantita": 1,
       "prezzo": 7.2,
       "immagine": "img/cmw951tl2bcck6.jpg",
+      "venduta": false
+    },
+    {
+      "id": "cmw9677f8vddxt",
+      "nome": "Kaido Manga",
+      "codice": "OP17-062",
+      "espansione": "OP17",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 800,
+      "immagine": "img/cmw9677f8vddxt.jpg",
       "venduta": false
     }
   ]
