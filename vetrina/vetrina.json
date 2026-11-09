@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "aggiornatoIl": "2026-11-09T10:20:08.468Z",
+  "aggiornatoIl": "2026-11-09T10:34:54.038Z",
   "carte": [
     {
       "id": "cmw92pb4f1jm4i",
@@ -91,6 +91,19 @@
       "quantita": 1,
       "prezzo": 39.67,
       "immagine": "img/cmw9407qwapzta.jpg",
+      "venduta": false
+    },
+    {
+      "id": "cmw94k0yzb5e53",
+      "nome": "eb03 box",
+      "codice": "",
+      "espansione": "",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Inglese",
+      "quantita": 1,
+      "prezzo": 241.67,
+      "immagine": null,
       "venduta": false
     }
   ]
