@@ -384,7 +384,7 @@ async function modificaCartaVetrina(id, modifica) {
   const i = vetrina.findIndex((c) => c.id === id);
   if (i === -1) return null;
   vetrina[i] = modifica(vetrina[i]);
-  await chrome.storage.local.set({ vetrina });
+  await chrome.storage.local.set({ vetrina, vetrinaModificataIl: Date.now() });
   return vetrina[i];
 }
 
