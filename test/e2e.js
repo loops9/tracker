@@ -50,6 +50,8 @@ function serviStatico(dir) {
 
 // Pagine Cardmarket finte: il codice nell'URL sceglie la fixture.
 const FIXTURE_PER_CODICE = {
+  "OP13-118-V1": "prodotto-versione-1.html",
+  "OP13-118-V2": "prodotto-versione-2.html",
   "OP01-024": "prodotto-5-inserzioni.html",
   "OP01-016": "prodotto-2-inserzioni.html",
   "OP05-119": "prodotto-0-inserzioni.html",
@@ -126,6 +128,12 @@ async function testFixture(browser) {
   verifica(cinque.prezzo === 2 && cinque.media3 === 2.17, "campi esistenti prezzo/media3 invariati", [cinque.prezzo, cinque.media3]);
   verifica(cinque.immagineUrl === CDN + "OP13/857338/857338.jpg", "immagine scelta per codice nell'alt", cinque.immagineUrl);
   verifica(cinque.stato === "pronta", "pagina prodotto riconosciuta come pronta", cinque.stato);
+
+  // Versioni alternative: stesso codice, il carosello mostra prima le altre versioni.
+  const v1 = await estrai("OP13-118-V1");
+  verifica(v1.immagineUrl === CDN + "OP13/857337/857337.jpg", "V.1: immagine della V.1, non di un'altra versione nel carosello", v1.immagineUrl);
+  const v2 = await estrai("OP13-118-V2");
+  verifica(v2.immagineUrl === CDN + "OP13/857338/857338.jpg", "V.2: immagine della V.2, non della V.1 che compare prima", v2.immagineUrl);
 
   const due = await estrai("OP01-016");
   verifica(due.mercato.marketPrice === 4.63 && due.mercato.marketSampleSize === 2, "meno di 3 inserzioni → media di 2 = 4,63", due.mercato);

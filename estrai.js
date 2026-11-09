@@ -76,28 +76,34 @@ async function estraiPrezzoMinimoItalia(filtroInfo) {
     if (!Number.isNaN(valore)) prezzi.push(valore);
   });
 
-  // Immagine della carta: la pagina può avere un carosello con più carte,
-  // quindi scelgo l'immagine il cui alt contiene il codice della carta
-  // (es. "OP16-098") estratto dall'URL della pagina stessa.
+  // Immagine della carta. La pagina ha caroselli con altre carte, comprese
+  // le altre versioni dello stesso codice (V.1, V.2, V.3...): il codice da
+  // solo non basta. L'immagine del prodotto ha l'alt identico al nome nell'h1
+  // (es. "Monkey.D.Luffy (OP13-118) (V.2)"), che coincide con og:image.
+  const testoAlt = (t) => String(t || "").replace(/\s+/g, " ").trim().toLowerCase();
+  const h1 = document.querySelector("h1");
+  const nomeH1 = h1
+    ? Array.from(h1.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent).join("")
+    : "";
+  const nomeProdotto = testoAlt(nomeH1) || testoAlt(document.title.split(" | ")[0]);
+
   const segmento = decodeURIComponent((location.pathname.split("/").filter(Boolean).pop() || ""));
   const matchCodice = segmento.match(/([A-Z]{1,5}\d*-\d+)/);
   const codice = matchCodice ? matchCodice[1].toLowerCase() : null;
 
-  let urlImg = null;
+  const srcDi = (img) => (img && (img.currentSrc || img.src)) || null;
+  const nonLazy = (lista) => lista.find((img) => !img.classList.contains("lazy")) || lista[0];
   const candidate = Array.from(document.querySelectorAll(".card-image img"));
+  const og = document.querySelector("meta[property='og:image']");
 
-  if (codice && candidate.length) {
-    const conCodice = candidate.filter((img) => (img.alt || "").toLowerCase().includes(codice));
-    const scelta = conCodice.find((img) => img.classList.contains("is-front")) || conCodice[0];
-    if (scelta) urlImg = scelta.currentSrc || scelta.src || null;
+  let urlImg = null;
+  if (nomeProdotto) urlImg = srcDi(nonLazy(candidate.filter((img) => testoAlt(img.alt) === nomeProdotto)));
+  if (!urlImg) urlImg = (og && og.getAttribute("content")) || null;
+  if (!urlImg && codice) {
+    const conCodice = candidate.filter((img) => testoAlt(img.alt).includes(codice));
+    urlImg = srcDi(nonLazy(conCodice.filter((img) => img.classList.contains("is-front"))) || conCodice[0]);
   }
-  if (!urlImg) {
-    const og = document.querySelector("meta[property='og:image']");
-    urlImg = (og && og.getAttribute("content")) || null;
-  }
-  if (!urlImg && candidate.length) {
-    urlImg = candidate[0].currentSrc || candidate[0].src || null;
-  }
+  if (!urlImg) urlImg = srcDi(candidate[0]);
 
   prezzi.sort((a, b) => a - b);
   const primi3 = prezzi.slice(0, 3);
