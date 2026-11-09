@@ -1,0 +1,148 @@
+:root {
+  --sfondo: #f6f4ef;
+  --superficie: #ffffff;
+  --testo: #1d2230;
+  --tenue: #646c82;
+  --bordo: #e2ded4;
+  --accento: #8a6a2e;
+  --paga: #1d2230;
+  --paga-testo: #ffffff;
+  --venduta: #9b4a33;
+  --ombra: 0 1px 2px rgba(29, 34, 48, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sfondo: #0b1020;
+    --superficie: #141b31;
+    --testo: #ece7da;
+    --tenue: #8d96ae;
+    --bordo: rgba(255, 255, 255, 0.08);
+    --accento: #c9a35f;
+    --paga: #c9a35f;
+    --paga-testo: #0b1020;
+    --venduta: #e08b6f;
+    --ombra: none;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--sfondo);
+  color: var(--testo);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.guscio { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+
+:focus-visible { outline: 2px solid var(--accento); outline-offset: 2px; }
+
+.nascosto {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* -------------------------------------------------------------- testata */
+
+.testata {
+  border-bottom: 1px solid var(--bordo);
+  padding: max(22px, env(safe-area-inset-top)) 0 18px;
+  margin-bottom: 18px;
+}
+
+h1 { font-size: 22px; line-height: 1.2; margin: 0 0 6px; font-weight: 650; letter-spacing: -0.01em; }
+
+.aggiornata { margin: 0 0 10px; font-size: 13px; color: var(--tenue); }
+
+.invito {
+  margin: 0; font-size: 14px; max-width: 60ch;
+  padding-left: 10px; border-left: 2px solid var(--accento);
+}
+
+/* ------------------------------------------------------------ strumenti */
+
+.strumenti { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.strumenti[hidden] { display: none; }
+
+.cerca { flex: 1 1 220px; }
+.ordina { flex: 0 0 auto; }
+
+input, select {
+  font: inherit; font-size: 16px; /* niente zoom automatico su iOS */
+  width: 100%; padding: 9px 11px; border-radius: 6px;
+  background: var(--superficie); color: var(--testo); border: 1px solid var(--bordo);
+}
+
+.conteggio { margin: 0 0 12px; font-size: 13px; color: var(--tenue); min-height: 1.2em; }
+
+/* --------------------------------------------------------------- griglia */
+
+.griglia {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 620px) { .griglia { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+@media (min-width: 900px) { .griglia { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+
+.carta {
+  display: flex; flex-direction: column;
+  background: var(--superficie); border: 1px solid var(--bordo); border-radius: 8px;
+  box-shadow: var(--ombra); overflow: hidden;
+}
+
+.figura { position: relative; aspect-ratio: 63 / 88; background: var(--bordo); }
+.figura img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.figura .segnaposto {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 10px; text-align: center; font-size: 13px; color: var(--tenue);
+}
+
+.corpo { display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 12px; flex: 1; }
+
+.nome {
+  margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.dettagli { margin: 0; font-size: 12.5px; color: var(--tenue); overflow-wrap: anywhere; }
+
+.etichette { display: flex; flex-wrap: wrap; gap: 4px; }
+.etichetta {
+  font-size: 11.5px; padding: 1px 6px; border-radius: 3px;
+  border: 1px solid var(--bordo); color: var(--tenue); white-space: nowrap;
+}
+
+.piede-carta { margin-top: auto; padding-top: 4px; display: grid; gap: 8px; }
+
+.prezzo-riga { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.prezzo { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.disponibili { font-size: 12px; color: var(--tenue); }
+
+.paga {
+  display: block; text-align: center; text-decoration: none;
+  background: var(--paga); color: var(--paga-testo);
+  font-size: 13.5px; font-weight: 600; line-height: 1.2;
+  padding: 10px 6px; border-radius: 6px;
+}
+.paga:hover { filter: brightness(1.08); }
+
+/* vendute: in fondo, attenuate, senza pulsante */
+.carta.venduta .figura img { filter: grayscale(1); opacity: 0.55; }
+.carta.venduta .nome, .carta.venduta .prezzo { color: var(--tenue); }
+.carta.venduta .prezzo { text-decoration: line-through; font-weight: 600; }
+.bollo {
+  position: absolute; left: 8px; top: 8px;
+  background: var(--venduta); color: #fff; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px;
+}
+
+.messaggio {
+  margin: 28px auto; max-width: 46ch; text-align: center; color: var(--tenue); font-size: 15px;
+}
+
+.piede { margin-top: 32px; padding-bottom: max(28px, env(safe-area-inset-bottom)); font-size: 12.5px; color: var(--tenue); }
