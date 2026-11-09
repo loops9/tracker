@@ -152,3 +152,19 @@ l'unico accesso in più è il content script sul Ledger:
 Non toccati, ma riducibili in futuro: `alarms` serve solo a cancellare un vecchio allarme;
 `tabs` probabilmente non è necessario (`tabs.create/remove` funzionano senza). Lasciati com'erano per non cambiare il comportamento esistente.
 Solo la copia dell'estensione usata nei test e2e aggiunge `http://127.0.0.1/*` (server delle fixture).
+
+## Immagini delle versioni alternative (V.2, V.3…)
+
+Le pagine prodotto hanno caroselli con altre carte, comprese le altre versioni
+dello stesso codice (sulla pagina della V.2 compaiono anche V.1 e V.3). Prima
+l'immagine veniva scelta cercando il codice nell'`alt`, quindi poteva uscire la
+versione sbagliata. Ora `estrai.js` sceglie l'immagine con l'`alt` identico al
+nome nell'`h1` (es. "Monkey.D.Luffy (OP13-118) (V.2)", preferendo quella senza
+classe `lazy`), poi `og:image`, e solo alla fine il codice. Verificato sulle
+pagine reali V.1/V.2 salvate dall'utente; le fixture `prodotto-versione-*.html`
+ne ricalcano la struttura senza dati personali.
+
+Le immagini già salvate si correggono da sole: il tracker riscarica la
+miniatura quando l'URL letto cambia, e `applicaMercato` ora sostituisce sempre
+l'`immagineUrl` della vetrina con quella appena letta (se valida), quindi alla
+ripubblicazione il file in `vetrina/img/` viene ricaricato.
