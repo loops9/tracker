@@ -499,6 +499,52 @@ async function testEstensione() {
   await nuova.waitForLoadState();
   verifica(nuova.url().endsWith("/options.html"), "popup: 'Gestisci vetrina' apre la pagina options", nuova.url());
 
+  // --- backup dal Ledger: esporta, svuota (come un PC nuovo), reimporta
+  await sw.evaluate(() => chrome.storage.local.set({ githubOwner: "loops9", githubRepo: "tracker", githubToken: "tok-segreto" }));
+  const prima = await sw.evaluate(() => chrome.storage.local.get(["carte", "storico", "vetrina", "vetrinaPubblicataIl", "githubOwner", "githubRepo"]));
+  await page.goto("https://loops9.github.io/tracker/");
+  const barra = page.locator("#cm-tracker-backup");
+  await barra.locator("button[data-esporta]").waitFor();
+  await page.screenshot({ path: path.join(OUT, "ledger-backup.png") });
+  page.once("dialog", (d) => d.dismiss()); // senza token
+  const [scaricato] = await Promise.all([page.waitForEvent("download"), barra.locator("button[data-esporta]").click()]);
+  const fileBackup = path.join(OUT, scaricato.suggestedFilename());
+  await scaricato.saveAs(fileBackup);
+  const backup = JSON.parse(fs.readFileSync(fileBackup, "utf8"));
+  verifica(/^cardmarket-tracker-backup-\d{4}-\d{2}-\d{2}\.json$/.test(scaricato.suggestedFilename()), "backup: nome del file con la data", scaricato.suggestedFilename());
+  verifica(backup.dati.carte.length === prima.carte.length && backup.dati.vetrina.length === prima.vetrina.length && backup.dati.githubRepo === "tracker",
+    "backup: il file contiene carte, vetrina e impostazioni", Object.keys(backup.dati));
+  verifica(!("githubToken" in backup.dati) && !fs.readFileSync(fileBackup, "utf8").includes("tok-segreto"), "backup: senza token se si risponde Annulla");
+  page.once("dialog", (d) => d.accept());
+  const [conToken] = await Promise.all([page.waitForEvent("download"), barra.locator("button[data-esporta]").click()]);
+  const fileConToken = path.join(OUT, "backup-con-token.json");
+  await conToken.saveAs(fileConToken);
+  verifica(JSON.parse(fs.readFileSync(fileConToken, "utf8")).dati.githubToken === "tok-segreto", "backup: con token se si risponde OK");
+
+  await sw.evaluate(() => chrome.storage.local.clear());
+  let domanda = "";
+  page.once("dialog", (d) => { domanda = d.message(); d.accept(); });
+  await barra.locator("input[type=file]").setInputFiles(fileBackup);
+  await barra.locator(".esito.ok").waitFor();
+  const dopo = await sw.evaluate(() => chrome.storage.local.get(null));
+  verifica(JSON.stringify(dopo.carte) === JSON.stringify(prima.carte) && JSON.stringify(dopo.vetrina) === JSON.stringify(prima.vetrina) &&
+    dopo.vetrinaPubblicataIl === prima.vetrinaPubblicataIl && dopo.githubOwner === "loops9" && dopo.githubRepo === "tracker",
+    "backup: importato su un browser vuoto, dati identici");
+  verifica(/3 carte tracciate/.test(domanda), "backup: chiede conferma con il riepilogo", domanda);
+  verifica(/token GitHub non era nel file/.test(await barra.locator(".esito").textContent()), "backup: avvisa di reinserire il token");
+
+  page.once("dialog", (d) => d.dismiss());
+  await sw.evaluate(() => chrome.storage.local.set({ carte: [] }));
+  await barra.locator("input[type=file]").setInputFiles(fileBackup);
+  await page.waitForTimeout(300);
+  verifica((await sw.evaluate(() => chrome.storage.local.get("carte"))).carte.length === 0, "backup: Annulla non importa nulla");
+
+  const fileRotto = path.join(OUT, "backup-rotto.json");
+  fs.writeFileSync(fileRotto, '{"ciao": 1}');
+  await barra.locator("input[type=file]").setInputFiles(fileRotto);
+  await barra.locator(".esito.errore").waitFor();
+  verifica(/non è un backup/.test(await barra.locator(".esito").textContent()), "backup: file sbagliato → errore leggibile");
+
   await ctx.close();
   return sito;
 }

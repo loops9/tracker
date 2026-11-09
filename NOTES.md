@@ -168,3 +168,13 @@ Le immagini già salvate si correggono da sole: il tracker riscarica la
 miniatura quando l'URL letto cambia, e `applicaMercato` ora sostituisce sempre
 l'`immagineUrl` della vetrina con quella appena letta (se valida), quindi alla
 ripubblicazione il file in `vetrina/img/` viene ricaricato.
+
+### Backup e trasferimento su un altro PC (9/11/2026, v1.4)
+- `backup.js`: formato `{ formato: "cardmarket-tracker-backup", versione: 1, esportatoIl, dati }` con
+  `carte, storico, vetrina, vetrinaPubblicataIl, vetrinaModificataIl, ultimoControllo, githubOwner,
+  githubRepo, githubPath`; il token solo se l'utente risponde OK alla domanda. `vetrinaProgresso` resta fuori.
+- Importazione: sostituisce i dati del browser dopo una conferma con il riepilogo; accetta anche il
+  vecchio file del popup (`{ carte, storico }`); se il file non ha il token, quello già presente resta.
+- Pulsanti "Esporta dati" / "Importa dati" nel Ledger sotto il titolo (`ledger-backup.js`, solo con
+  l'estensione) e nel popup ("Esporta tutti i dati", che prima esportava solo carte e storico).
+- Test: `test/backup.test.js` e blocco "backup" in `test/e2e.js` (esporta, svuota lo storage, reimporta).
