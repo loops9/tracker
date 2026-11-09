@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "aggiornatoIl": "2026-11-09T10:16:18.356Z",
+  "aggiornatoIl": "2026-11-09T10:19:31.907Z",
   "carte": [
     {
       "id": "cmw92pb4f1jm4i",
@@ -77,7 +77,20 @@
       "lingua": "Inglese",
       "quantita": 1,
       "prezzo": 1116.67,
-      "immagine": "img/cmw9320gxw0gy1.jpg",
+      "immagine": null,
+      "venduta": false
+    },
+    {
+      "id": "cmw9407qwapzta",
+      "nome": "luffy bandai card games jp",
+      "codice": "P-041",
+      "espansione": "Promos Japanese",
+      "rarita": "",
+      "condizione": "NM",
+      "lingua": "Giapponese",
+      "quantita": 1,
+      "prezzo": 39.67,
+      "immagine": "img/cmw9407qwapzta.jpg",
       "venduta": false
     }
   ]
