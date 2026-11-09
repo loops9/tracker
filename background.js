@@ -1,8 +1,13 @@
 importScripts("estrai.js", "vetrina-core.js", "github.js");
 
 const ALARM_NAME = "controlloGiornaliero";
-const RITARDO_MIN_MS = 4000;
-const RITARDO_MAX_MS = 9000;
+// Scraping: più schede insieme, aperte in background (non prendono il focus
+// e non cambiano la scheda che si sta guardando), lette appena l'HTML è arrivato. SFASAMENTO distanzia l'apertura delle schede per non
+// presentarsi a Cloudflare con una raffica di richieste nello stesso istante.
+const SCHEDE_PARALLELE = 4;
+const SFASAMENTO_MIN_MS = 300;
+const SFASAMENTO_MAX_MS = 1200;
+const ATTESA_MAX_MS = 45000;
 
 function conFiltroItalia(url) {
   const u = new URL(url);
@@ -123,12 +128,7 @@ async function elaboraCarta(carta) {
 async function controllaTutte() {
   await configuraRegolaReferer();
   const { carte = [] } = await chrome.storage.local.get("carte");
-  const risultati = [];
-
-  for (const carta of carte) {
-    risultati.push(await elaboraCarta(carta));
-    await attesa(RITARDO_MIN_MS + Math.random() * (RITARDO_MAX_MS - RITARDO_MIN_MS));
-  }
+  const risultati = await inParallelo(carte, elaboraCarta);
 
   await salvaRisultati(risultati);
   await chrome.storage.local.set({ ultimoControllo: Date.now() });
@@ -213,47 +213,74 @@ async function scaricaMiniatura(url, larghezza = 160) {
   }
 }
 
-function controllaCarta(url, filtroInfo) {
-  const urlFiltrato = conFiltroItalia(url);
-  return new Promise((resolve, reject) => {
-    chrome.tabs.create({ url: urlFiltrato, active: true }, (tab) => {
-      if (chrome.runtime.lastError || !tab?.id) {
-        reject(new Error(chrome.runtime.lastError?.message || "apertura tab fallita"));
-        return;
-      }
-      const tabId = tab.id;
+// Esegue lavoro(elemento) su tutti gli elementi, al massimo
+// SCHEDE_PARALLELE alla volta. Restituisce i risultati nello stesso ordine.
+//
+// Nota: una finestra separata ridotta a icona sarebbe stata più discreta, ma
+// Chrome la ripristina quando ci si apre una scheda (provato su Linux): le
+// schede in background nella finestra corrente sono l'unica via affidabile.
+async function inParallelo(elementi, lavoro, alProgresso) {
+  if (!elementi.length) return [];
+  const risultati = new Array(elementi.length);
+  let prossimo = 0;
+  let fatti = 0;
+  const operaio = async () => {
+    while (prossimo < elementi.length) {
+      const i = prossimo++;
+      await attesa(SFASAMENTO_MIN_MS + Math.random() * (SFASAMENTO_MAX_MS - SFASAMENTO_MIN_MS));
+      risultati[i] = await lavoro(elementi[i]);
+      fatti++;
+      if (alProgresso) await alProgresso(fatti, elementi.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(SCHEDE_PARALLELE, elementi.length) }, operaio));
+  return risultati;
+}
 
-      const timeoutId = setTimeout(() => {
-        chrome.tabs.onUpdated.removeListener(listener);
-        chrome.tabs.remove(tabId).catch(() => {});
-        reject(new Error("timeout caricamento pagina (oltre 45s)"));
-      }, 45000);
+// Apre la pagina (filtrata sui venditori italiani) in una scheda in
+// background e la legge appena è pronta.
+async function controllaCarta(url, filtroInfo) {
+  const tab = await chrome.tabs.create({ url: conFiltroItalia(url), active: false });
+  try {
+    return await leggiQuandoPronta(tab.id, filtroInfo);
+  } finally {
+    chrome.tabs.remove(tab.id).catch(() => {});
+  }
+}
 
-      function listener(id, info) {
-        if (id !== tabId || info.status !== "complete") return;
-        chrome.tabs.onUpdated.removeListener(listener);
-        clearTimeout(timeoutId);
+// Interroga la scheda finché l'HTML è arrivato (readyState "interactive"),
+// senza aspettare immagini e script esterni. Durante una sfida Cloudflare
+// aspetta che si risolva; se allo scadere è ancora lì, l'estrazione la
+// riconosce e restituisce bloccato: true.
+async function leggiQuandoPronta(tabId, filtroInfo) {
+  const scadenza = Date.now() + ATTESA_MAX_MS;
+  let stato = "caricamento";
+  while (Date.now() < scadenza) {
+    await attesa(250);
+    try {
+      const [r] = await chrome.scripting.executeScript({
+        target: { tabId },
+        injectImmediately: true,
+        func: statoPaginaCardmarket,
+      });
+      stato = r?.result || "caricamento";
+    } catch (e) {
+      // pagina ancora in navigazione: il documento non è iniettabile
+      if (/No tab with id/i.test(String(e?.message))) throw new Error("scheda chiusa durante il controllo");
+      continue;
+    }
+    if (stato === "pronta") break;
+  }
+  if (stato === "caricamento") throw new Error("timeout caricamento pagina (oltre 45s)");
 
-        // margine dopo "complete" per dare tempo a un'eventuale sfida
-        // automatica di Cloudflare di risolversi da sola
-        setTimeout(() => {
-          chrome.scripting.executeScript(
-            { target: { tabId }, func: estraiPrezzoMinimoItalia, args: [filtroInfo || null] },
-            (iniezione) => {
-              chrome.tabs.remove(tabId).catch(() => {});
-              if (chrome.runtime.lastError || !iniezione || !iniezione[0]) {
-                reject(new Error(chrome.runtime.lastError?.message || "estrazione fallita"));
-              } else {
-                resolve(iniezione[0].result); // { prezzo, bloccato }
-              }
-            }
-          );
-        }, 5000);
-      }
-
-      chrome.tabs.onUpdated.addListener(listener);
-    });
+  const [iniezione] = await chrome.scripting.executeScript({
+    target: { tabId },
+    injectImmediately: true,
+    func: estraiPrezzoMinimoItalia,
+    args: [filtroInfo || null],
   });
+  if (!iniezione) throw new Error("estrazione fallita");
+  return iniezione.result;
 }
 
 async function sincronizzaGitHub() {
@@ -364,8 +391,8 @@ async function modificaCartaVetrina(id, modifica) {
 let vetrinaInAggiornamento = false;
 
 // Aggiorna il prezzo di mercato di tutte le carte non vendute (o di una
-// sola, con id). Le carte con lo stesso URL prodotto condividono una sola
-// visita alla pagina. Stesse pause del controllo delle carte tracciate.
+// sola, con id). Le carte con la stessa pagina (URL + filtro) condividono
+// una sola visita. Stesso scraping del tracker, più schede in parallelo.
 async function aggiornaVetrina(soloId) {
   if (vetrinaInAggiornamento) throw new Error("aggiornamento prezzi già in corso");
   vetrinaInAggiornamento = true;
@@ -373,33 +400,32 @@ async function aggiornaVetrina(soloId) {
     await configuraRegolaReferer();
     const { vetrina = [] } = await chrome.storage.local.get("vetrina");
     const daFare = vetrina.filter((c) => (soloId ? c.id === soloId : !c.sold));
-    const urls = [...new Set(daFare.map((c) => c.url))];
+    const chiave = (c) => c.url + "\n" + (c.filtroInfo || "");
+    const pagine = [...new Map(daFare.map((c) => [chiave(c), c])).values()];
     const esito = { aggiornate: 0, senzaInserzioni: 0, bloccate: 0, errori: 0 };
+    await chrome.storage.local.set({ vetrinaProgresso: { fatte: 0, totale: pagine.length, inCorso: true } });
 
-    for (let n = 0; n < urls.length; n++) {
-      const url = urls[n];
-      await chrome.storage.local.set({ vetrinaProgresso: { fatte: n, totale: urls.length, inCorso: true } });
+    await inParallelo(
+      pagine,
+      async (pagina) => {
+        let ris;
+        try {
+          ris = await controllaCarta(pagina.url, pagina.filtroInfo);
+        } catch (e) {
+          ris = { errore: String(e?.message || e) };
+        }
+        if (ris.errore) esito.errori++;
+        else if (ris.bloccato) esito.bloccate++;
+        else if (!ris.prezzi?.length) esito.senzaInserzioni++;
+        else esito.aggiornate++;
 
-      let ris;
-      try {
-        ris = await controllaCarta(url, null);
-      } catch (e) {
-        ris = { errore: String(e?.message || e) };
-      }
-      if (ris.errore) esito.errori++;
-      else if (ris.bloccato) esito.bloccate++;
-      else if (!ris.prezzi?.length) esito.senzaInserzioni++;
-      else esito.aggiornate++;
-
-      const ora = Date.now();
-      for (const c of daFare.filter((x) => x.url === url)) {
-        await modificaCartaVetrina(c.id, (attuale) => applicaMercato(attuale, ris, ora));
-      }
-      if (n < urls.length - 1) {
-        await attesa(RITARDO_MIN_MS + Math.random() * (RITARDO_MAX_MS - RITARDO_MIN_MS));
-      }
-    }
-    await chrome.storage.local.set({ vetrinaProgresso: { fatte: urls.length, totale: urls.length, inCorso: false } });
+        const ora = Date.now();
+        for (const c of daFare.filter((x) => chiave(x) === chiave(pagina))) {
+          await modificaCartaVetrina(c.id, (attuale) => applicaMercato(attuale, ris, ora));
+        }
+      },
+      (fatte, totale) => chrome.storage.local.set({ vetrinaProgresso: { fatte, totale, inCorso: fatte < totale } })
+    );
     return esito;
   } finally {
     vetrinaInAggiornamento = false;
