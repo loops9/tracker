@@ -190,6 +190,12 @@ function installaGitHubFinto() {
     if (self.__modo.token === "401") return risposta(401, { message: "Bad credentials" });
 
     if (url.pathname === "/repos/loops9/tracker") return risposta(200, { permissions: { push: true } });
+    if (url.pathname.startsWith("/repos/loops9/tracker/git/blobs/")) {
+      const sha = url.pathname.split("/").pop();
+      const f = [...self.__repo.values()].find((x) => x.sha === sha);
+      if (!f) return risposta(404, { message: "Not Found" });
+      return new Response(decodeURIComponent(escape(atob(f.content))), { status: 200 });
+    }
     const p = decodeURIComponent(url.pathname.replace("/repos/loops9/tracker/contents/", ""));
     if (metodo === "GET") {
       if (self.__repo.has(p)) return risposta(200, { sha: self.__repo.get(p).sha });
@@ -207,8 +213,9 @@ function installaGitHubFinto() {
       if (esiste && corpo.sha !== esiste.sha) return risposta(409, { message: "sha mismatch" });
       if (!esiste && corpo.sha) return risposta(422, { message: "sha not expected" });
       if (corpo.branch !== "main") return risposta(422, { message: "branch" });
-      self.__repo.set(p, { sha: "s" + Math.random().toString(36).slice(2), content: corpo.content });
-      return risposta(esiste ? 200 : 201, { content: { path: p } });
+      const sha = "s" + Math.random().toString(36).slice(2);
+      self.__repo.set(p, { sha, content: corpo.content });
+      return risposta(esiste ? 200 : 201, { content: { path: p, sha } });
     }
     if (metodo === "DELETE") {
       self.__repo.delete(p);
@@ -439,7 +446,8 @@ async function testEstensione() {
   const repo = await sw.evaluate(() => Object.fromEntries([...self.__repo].map(([k, x]) => [k, x.content])));
   const json = JSON.parse(Buffer.from(repo["vetrina/vetrina.json"], "base64").toString("utf8"));
   verifica(json.carte.length === 2 && json.carte[0].prezzo === 3 && json.carte[1].prezzo === 4.63 && json.carte[1].venduta, "vetrina.json: prezzo personale / di mercato, venduta", json.carte);
-  verifica(!Object.keys(repo).includes("data.json"), "la pubblicazione della vetrina non scrive data.json", Object.keys(repo));
+  const dataJson = JSON.parse(Buffer.from(repo["data.json"], "base64").toString("utf8"));
+  verifica(dataJson.vetrina?.length === 3 && dataJson.carte.length === 3, "prima di pubblicare, la vetrina completa è sincronizzata in data.json (per l'altro PC)", { vetrina: dataJson.vetrina?.length, carte: dataJson.carte.length });
   const immagini = Object.keys(repo).filter((k) => k.startsWith("vetrina/img/"));
   verifica(immagini.length === 3, "immagini committate nel repo (anche quella della carta senza prezzo)", immagini);
   const jpeg = Buffer.from(repo[`vetrina/img/${v[0].id}.jpg`], "base64");
@@ -454,7 +462,10 @@ async function testEstensione() {
   await opt.locator("#stato").filter({ hasText: "Vetrina pubblicata" }).waitFor({ timeout: 60000 });
   const log = await sw.evaluate(() => self.__log);
   const putDopo = log.filter((x) => x.metodo === "PUT").length;
-  verifica(putDopo - putPrima === 1, "ripubblicazione: solo vetrina.json, immagini già presenti non ricaricate", putDopo - putPrima);
+  const putNuovi = log.filter((x) => x.metodo === "PUT").slice(putPrima).map((x) => x.path.split("/contents/")[1]);
+  verifica(putNuovi.filter((p) => p !== "data.json").join() === "vetrina/vetrina.json", "ripubblicazione: solo vetrina.json (più data.json), immagini già presenti non ricaricate", putNuovi);
+  const dataDopo = await sw.evaluate(() => JSON.parse(decodeURIComponent(escape(atob(self.__repo.get("data.json").content)))));
+  verifica(dataDopo.vetrina.length === 2 && dataDopo.eliminati.vetrina[v[2].id] > 0, "data.json ricorda la carta tolta (l'altro PC non la rimette)", dataDopo.eliminati);
   verifica(log.some((x) => x.metodo === "DELETE" && x.path.endsWith(`${v[2].id}.jpg`)), "immagine della carta tolta eliminata dal repo");
   verifica(await opt.isHidden("#daPubblicare"), "options: dopo la pubblicazione l'avviso sparisce");
 
@@ -709,12 +720,176 @@ async function testComportamentoPagina(browser, sito) {
   server.close();
 }
 
+
+// ------------------------------------------------- D. due PC, stesso repo
+//
+// Due profili Chromium separati (= due PC) con l'estensione, e un GitHub
+// finto unico servito da Node: le chiamate a api.github.com del service
+// worker vengono rimandate qui.
+
+function avviaGitHubCondiviso() {
+  const repo = new Map(); // path -> { sha, testo }
+  const log = [];
+  let n = 0;
+  const server = http.createServer((req, res) => {
+    let corpo = "";
+    req.on("data", (d) => (corpo += d));
+    req.on("end", () => {
+      const url = new URL(req.url, "http://x");
+      const json = (status, o) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
+      log.push({ metodo: req.method, path: url.pathname });
+      if (url.pathname.startsWith("/repos/loops9/tracker/git/blobs/")) {
+        const sha = url.pathname.split("/").pop();
+        const f = [...repo.values()].find((x) => x.sha === sha);
+        if (!f) return json(404, {});
+        res.writeHead(200);
+        return res.end(f.testo);
+      }
+      if (url.pathname === "/repos/loops9/tracker") return json(200, { permissions: { push: true } });
+      const p = decodeURIComponent(url.pathname.replace("/repos/loops9/tracker/contents/", ""));
+      if (req.method === "GET") return repo.has(p) ? json(200, { sha: repo.get(p).sha }) : json(404, {});
+      if (req.method === "PUT") {
+        const c = JSON.parse(corpo);
+        const esiste = repo.get(p);
+        if ((esiste && c.sha !== esiste.sha) || (!esiste && c.sha)) return json(409, { message: "sha mismatch" });
+        const sha = "s" + ++n;
+        repo.set(p, { sha, testo: Buffer.from(c.content, "base64").toString("utf8") });
+        return json(200, { content: { path: p, sha } });
+      }
+      json(400, {});
+    });
+  });
+  return new Promise((r) => server.listen(0, "127.0.0.1", () => r({ server, repo, log, base: `http://127.0.0.1:${server.address().port}` })));
+}
+
+async function apriPC(nome, dir, gh) {
+  const profilo = path.join(OUT, "profilo-" + nome);
+  fs.rmSync(profilo, { recursive: true, force: true });
+  const ctx = await chromium.launchPersistentContext(profilo, {
+    channel: "chromium",
+    headless: !process.env.E2E_GRAFICO,
+    args: [`--disable-extensions-except=${dir}`, `--load-extension=${dir}`],
+  });
+  let sw = null;
+  for (let i = 0; i < 60 && !sw; i++) {
+    sw = ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker", { timeout: 500 }).catch(() => null));
+  }
+  if (!sw) throw new Error("service worker non avviato");
+  await sw.evaluate((base) => {
+    const vero = self.fetch.bind(self);
+    self.fetch = (input, opz) => {
+      const u = new URL(String(input.url || input));
+      return u.hostname === "api.github.com" ? vero(base + u.pathname + u.search, opz) : vero(input, opz);
+    };
+  }, gh.base);
+  await sw.evaluate(() => chrome.storage.local.set({ githubOwner: "loops9", githubRepo: "tracker", githubToken: "t" }));
+  const leggi = () => sw.evaluate(() => chrome.storage.local.get(["carte", "vetrina", "storico", "ultimaSyncErrore"]));
+  return { ctx, sw, leggi, id: new URL(sw.url()).host };
+}
+
+async function testDuePC() {
+  console.log("\nD. Due PC con la sincronizzazione");
+  const dir = copiaEstensione();
+  const gh = await avviaGitHubCondiviso();
+  const A = await apriPC("A", dir, gh);
+  const B = await apriPC("B", dir, gh);
+  const ora = Date.now();
+  const carta = (n, extra) => ({ nome: "Carta " + n, link: urlProdotto("SYNC-" + n), filtroInfo: null, quantita: 1, ultimoPrezzo: n, ultimaData: ora - 1000, ...extra });
+  const vc = (id, extra) => ({ id, nome: id, url: urlProdotto(id), condizione: "NM", lingua: "Inglese", quantita: 1, marketPrice: 5, customPrice: null, sold: false, updatedAt: ora - 1000, ...extra });
+  const commit = () => gh.log.filter((x) => x.metodo === "PUT").length;
+
+  // A: il PC vecchio, con la vetrina completa
+  await A.sw.evaluate(({ c, v }) => chrome.storage.local.set({ carte: c, vetrina: v, storico: [{ link: c[0].link, data: 1, prezzo: 1 }] }),
+    { c: [carta(1), carta(2)], v: [vc("v1"), vc("v2"), vc("v3")] });
+  await A.sw.evaluate(() => sincronizza());
+  // B: il PC nuovo, con una carta in più e la vetrina vuota
+  await B.sw.evaluate(({ c }) => chrome.storage.local.set({ carte: c, vetrina: [], storico: [{ link: c[1].link, data: 2, prezzo: 2 }] }),
+    { c: [carta(2), carta(3)] });
+  await B.sw.evaluate(() => sincronizza());
+  let b = await B.leggi();
+  verifica(b.carte.length === 3 && b.vetrina.length === 3 && b.storico.length === 2, "PC B riceve carte, vetrina e storico di A e tiene la sua carta in più",
+    { carte: b.carte.length, vetrina: b.vetrina.length, storico: b.storico.length });
+
+  // B modifica dalla pagina Gestione vetrina: prezzo personale e una carta tolta
+  const opt = await B.ctx.newPage();
+  opt.on("dialog", (d) => d.accept());
+  await opt.goto(`chrome-extension://${B.id}/options.html`);
+  await opt.locator('#righe tr[data-id="v2"] input[data-campo=customPrice]').fill("12,34");
+  await opt.locator('#righe tr[data-id="v2"] input[data-campo=customPrice]').press("Enter");
+  await opt.locator('#righe tr[data-id="v3"] button[data-azione=rimuovi]').click();
+  await opt.waitForFunction(() => document.querySelectorAll("#righe tr[data-id]").length === 2);
+  // sincronizzazione automatica dopo la modifica (attesa breve + commit)
+  const remotoVetrina = () => JSON.parse(gh.repo.get("data.json").testo).vetrina;
+  for (let i = 0; i < 40 && remotoVetrina().length !== 2; i++) await new Promise((r) => setTimeout(r, 250));
+  verifica(remotoVetrina().length === 2 && remotoVetrina().find((c) => c.id === "v2").customPrice === 12.34,
+    "PC B: le modifiche in Gestione vetrina arrivano su GitHub da sole in pochi secondi", remotoVetrina().map((c) => [c.id, c.customPrice]));
+
+  // A apre il popup: prende le modifiche di B
+  const pop = await A.ctx.newPage();
+  pop.on("dialog", (d) => d.accept());
+  await pop.goto(`chrome-extension://${A.id}/popup.html`);
+  let a;
+  for (let i = 0; i < 40; i++) {
+    a = await A.leggi();
+    if (a.vetrina.length === 2) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  verifica(a.vetrina.length === 2 && a.vetrina.find((c) => c.id === "v2").customPrice === 12.34 && a.carte.length === 3,
+    "PC A: aprendo il popup riceve prezzo personale e carta tolta da B, e la carta nuova di B", { vetrina: a.vetrina.map((c) => [c.id, c.customPrice]), carte: a.carte.length });
+  await pop.locator("#tabellaCarte tr").nth(2).waitFor();
+  verifica(/Sincronizzato con GitHub/.test(await pop.locator("#statoSync").textContent()), "popup: mostra l'ora dell'ultima sincronizzazione");
+
+  // A toglie una carta tracciata dal popup; B la perde anche dopo un suo controllo prezzi
+  await pop.locator(`#tabellaCarte .rimuovi[data-link="${urlProdotto("SYNC-1")}"]`).click();
+  await pop.waitForFunction(() => document.querySelectorAll("#tabellaCarte tr").length === 2);
+  await A.sw.evaluate(() => sincronizza());
+  await B.sw.evaluate((link) => chrome.storage.local.get("carte").then(({ carte }) =>
+    chrome.storage.local.set({ carte: carte.map((c) => (c.link === link ? { ...c, ultimaData: Date.now(), ultimoPrezzo: 99 } : c)) })), urlProdotto("SYNC-1"));
+  await B.sw.evaluate(() => sincronizza());
+  b = await B.leggi();
+  verifica(!b.carte.some((c) => c.link === urlProdotto("SYNC-1")) && b.carte.length === 2, "carta tolta su A sparisce da B (non torna indietro)", b.carte.map((c) => c.nome));
+
+  // modifiche quasi contemporanee su carte diverse: nessuna si perde
+  await A.sw.evaluate(() => chrome.storage.local.get("vetrina").then(({ vetrina }) =>
+    chrome.storage.local.set({ vetrina: vetrina.map((c) => (c.id === "v1" ? { ...c, sold: true, updatedAt: Date.now() } : c)) })));
+  await B.sw.evaluate(() => chrome.storage.local.get("vetrina").then(({ vetrina }) =>
+    chrome.storage.local.set({ vetrina: vetrina.map((c) => (c.id === "v2" ? { ...c, quantita: 4, updatedAt: Date.now() } : c)) })));
+  await Promise.all([A.sw.evaluate(() => sincronizza()), B.sw.evaluate(() => sincronizza())]);
+  await A.sw.evaluate(() => sincronizza());
+  await B.sw.evaluate(() => sincronizza());
+  a = await A.leggi();
+  b = await B.leggi();
+  const vista = (x) => JSON.stringify(x.vetrina.map((c) => [c.id, c.sold, c.quantita]));
+  verifica(vista(a) === vista(b) && a.vetrina.find((c) => c.id === "v1").sold && a.vetrina.find((c) => c.id === "v2").quantita === 4,
+    "modifiche contemporanee dai due PC: entrambe conservate, i due PC uguali", { A: vista(a), B: vista(b) });
+
+  // nessun commit quando non è cambiato niente
+  const prima = commit();
+  await A.sw.evaluate(() => sincronizza());
+  await B.sw.evaluate(() => sincronizza());
+  verifica(commit() === prima, "nessun commit se non c'è niente di nuovo", commit() - prima);
+  verifica(!a.ultimaSyncErrore && !b.ultimaSyncErrore, "nessun errore di sincronizzazione", [a.ultimaSyncErrore, b.ultimaSyncErrore]);
+
+  // GitHub irraggiungibile: errore visibile nel popup, dati locali intatti
+  gh.server.close();
+  await A.sw.evaluate(() => sincronizza().catch(() => {}));
+  await pop.reload();
+  await pop.waitForFunction(() => /non riuscita/.test(document.getElementById("statoSync").textContent), null, { timeout: 10000 }).catch(() => {});
+  verifica(/non riuscita/.test(await pop.locator("#statoSync").textContent()) && (await A.leggi()).vetrina.length === 2,
+    "GitHub irraggiungibile: popup lo dice, dati locali intatti", await pop.locator("#statoSync").textContent());
+
+  await A.ctx.close();
+  await B.ctx.close();
+}
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
   try {
     await testFixture(browser);
+    if (process.env.E2E_SOLO === "sync") { await testDuePC(); return; }
     const sitoPubblicato = await testEstensione();
+    await testDuePC();
     const sitoEsempio = await preparaSitoEsempio();
     await testComportamentoPagina(browser, sitoEsempio);
     console.log("\nScreenshot");

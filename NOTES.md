@@ -178,3 +178,25 @@ ripubblicazione il file in `vetrina/img/` viene ricaricato.
 - Pulsanti "Esporta dati" / "Importa dati" nel Ledger sotto il titolo (`ledger-backup.js`, solo con
   l'estensione) e nel popup ("Esporta tutti i dati", che prima esportava solo carte e storico).
 - Test: `test/backup.test.js` e blocco "backup" in `test/e2e.js` (esporta, svuota lo storage, reimporta).
+
+## Sincronizzazione tra PC (v1.5, 10/11/2026)
+
+Più PC con l'estensione condividono lo stesso `data.json`, che ora contiene anche
+`vetrina`, `eliminati` e `formatoSync` (Ledger e cmtrack ignorano le chiavi nuove).
+
+- **Unione** (`sync-core.js`, logica pura + `test/sync-core.test.js`): carte per `link`
+  (campi utente dalla copia con `modificatoIl` più recente, dati prezzo da quella con
+  `ultimaData` più recente); vetrina per `id` (vince `updatedAt`); storico unito per
+  link+data. Eliminazioni in `eliminati.carte[link]` / `eliminati.vetrina[id]`, valide se
+  successive all'ultima modifica, dimenticate dopo 120 giorni.
+- **Giro** (`eseguiSincronizzazione` in `background.js`): legge `data.json` (sha dalla
+  Contents API, contenuto dal blob con quello sha: oltre 1 MB la Contents API non dà il
+  contenuto), unisce, scrive in locale senza attese di rete in mezzo, poi PUT con lo sha
+  letto; se è cambiato (409) rilegge e riunisce. Nessun commit se non cambia niente.
+  I giri sono in coda, mai due insieme.
+- **Quando**: avvio di Chrome, ogni 15 minuti (alarm), apertura di popup / Gestione vetrina /
+  Ledger, 3 s dopo ogni modifica locale di carte/vetrina/eliminati, dopo un controllo
+  prezzi, prima di "Aggiorna prezzi" e di "Pubblica vetrina".
+- **Stato**: `ultimaSync`, `ultimaSyncErrore` nello storage; il popup lo mostra.
+- Test: `test/e2e.js` sezione D, due profili Chromium contro un GitHub finto unico
+  (`E2E_SOLO=sync node test/e2e.js` per lanciare solo quella).

@@ -16,6 +16,7 @@ const BACKUP_CHIAVI = [
   "carte",
   "storico",
   "vetrina",
+  "eliminati",
   "vetrinaPubblicataIl",
   "vetrinaModificataIl",
   "ultimoControllo",

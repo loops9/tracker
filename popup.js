@@ -10,7 +10,7 @@ async function ricarica() {
     return;
   }
 
-  carte.forEach((c, i) => {
+  carte.forEach((c) => {
     const tr = document.createElement("tr");
 
     const tdNome = document.createElement("td");
@@ -44,7 +44,7 @@ async function ricarica() {
     btnRimuovi.className = "rimuovi";
     btnRimuovi.textContent = "✕";
     btnRimuovi.title = "Rimuovi questa carta";
-    btnRimuovi.dataset.i = i;
+    btnRimuovi.dataset.link = c.link;
 
     tdAzioni.append(btnRicontrolla, btnRimuovi);
     tr.append(tdNome, tdPrezzo, tdAzioni);
@@ -80,6 +80,7 @@ document.getElementById("btnAggiungi").addEventListener("click", async () => {
     ultimaData: null,
     ultimoErrore: null,
     ultimoBloccato: false,
+    modificatoIl: Date.now(), // per la sincronizzazione tra PC
   });
   await chrome.storage.local.set({ carte });
 
@@ -93,12 +94,17 @@ document.getElementById("btnAggiungi").addEventListener("click", async () => {
 
 corpo.addEventListener("click", async (e) => {
   if (e.target.classList.contains("rimuovi")) {
-    const i = Number(e.target.dataset.i);
+    // per link e non per posizione: la lista può essere cambiata nel
+    // frattempo per una sincronizzazione con l'altro PC
+    const link = e.target.dataset.link;
     const { carte = [] } = await chrome.storage.local.get("carte");
-    const nome = carte[i]?.nome || "questa carta";
+    const nome = carte.find((c) => c.link === link)?.nome || "questa carta";
     if (!confirm(`Rimuovere "${nome}" dalla lista?`)) return;
-    carte.splice(i, 1);
-    await chrome.storage.local.set({ carte });
+    const { carte: attuali = [], eliminati } = await chrome.storage.local.get(["carte", "eliminati"]);
+    await chrome.storage.local.set({
+      carte: attuali.filter((c) => c.link !== link),
+      eliminati: conEliminazione(eliminati, "carte", link),
+    });
     ricarica();
     return;
   }
@@ -254,9 +260,31 @@ document.getElementById("btnSincronizzaOra").addEventListener("click", () => {
   stato.textContent = "Sincronizzazione in corso...";
   chrome.runtime.sendMessage({ tipo: "sincronizzaOra" }, (risposta) => {
     stato.textContent = risposta?.ok
-      ? "Sincronizzato su GitHub."
+      ? (risposta.saltata ? "Sincronizzazione non configurata: inserisci utente, repository e token." : "Sincronizzato con GitHub.")
       : "Errore sincronizzazione: " + (risposta?.errore || "controlla utente/repo/token");
   });
 });
 
+// Stato della sincronizzazione con l'altro PC, sotto i pulsanti.
+async function mostraStatoSync() {
+  const { ultimaSync, ultimaSyncErrore, ultimaSyncErroreIl, githubToken } = await chrome.storage.local.get([
+    "ultimaSync", "ultimaSyncErrore", "ultimaSyncErroreIl", "githubToken",
+  ]);
+  const el = document.getElementById("statoSync");
+  const ora = (t) => new Date(t).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
+  if (!githubToken) el.textContent = "Sincronizzazione tra PC: non configurata (Impostazioni GitHub).";
+  else if (ultimaSyncErrore && (ultimaSyncErroreIl || 0) > (ultimaSync || 0)) el.textContent = `Sincronizzazione non riuscita (${ora(ultimaSyncErroreIl)}): ${ultimaSyncErrore}`;
+  else if (ultimaSync) el.textContent = `Sincronizzato con GitHub: ${ora(ultimaSync)}`;
+  else el.textContent = "Sincronizzazione in corso…";
+}
+
+chrome.storage.onChanged.addListener((cambi, area) => {
+  if (area !== "local") return;
+  if (cambi.carte) ricarica();
+  if (cambi.ultimaSync || cambi.ultimaSyncErrore) mostraStatoSync();
+});
+
 ricarica();
+mostraStatoSync();
+// all'apertura prendo le modifiche fatte dall'altro PC
+chrome.runtime.sendMessage({ tipo: "sincronizza" }).catch(() => {});

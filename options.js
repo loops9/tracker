@@ -32,9 +32,16 @@ async function modifica(id, cambia) {
   const i = vetrina.findIndex((c) => c.id === id);
   if (i === -1) return;
   const nuova = cambia({ ...vetrina[i] });
-  if (nuova === null) vetrina.splice(i, 1);
-  else vetrina[i] = { ...nuova, updatedAt: Date.now() };
-  await chrome.storage.local.set({ vetrina, vetrinaModificataIl: Date.now() });
+  const dati = { vetrina, vetrinaModificataIl: Date.now() };
+  if (nuova === null) {
+    vetrina.splice(i, 1);
+    // ricordo l'eliminazione, altrimenti l'altro PC la rimetterebbe
+    const { eliminati } = await chrome.storage.local.get("eliminati");
+    dati.eliminati = conEliminazione(eliminati, "vetrina", id);
+  } else {
+    vetrina[i] = { ...nuova, updatedAt: Date.now() };
+  }
+  await chrome.storage.local.set(dati);
 }
 
 function cellaMercato(c) {
@@ -294,3 +301,5 @@ document.getElementById("btnSalvaImpostazioni").addEventListener("click", async 
 
 // prima di disegnare le miniature mi assicuro che la regola sul Referer sia attiva
 chrome.runtime.sendMessage({ tipo: "preparaImmagini" }).catch(() => {}).finally(ricarica);
+// all'apertura prendo le modifiche fatte dall'altro PC (la tabella si ridisegna da sola)
+chrome.runtime.sendMessage({ tipo: "sincronizza" }).catch(() => {});

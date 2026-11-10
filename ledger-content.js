@@ -270,6 +270,7 @@ async function segnaInVetrina() {
 
 const schedaLedger = document.getElementById("scheda");
 if (schedaLedger && typeof chrome !== "undefined" && chrome.storage) {
+  chrome.runtime.sendMessage({ tipo: "sincronizza" }).catch(() => {}); // modifiche dell'altro PC
   new MutationObserver(() => aggiungiPulsante(schedaLedger)).observe(schedaLedger, { childList: true });
   aggiungiPulsante(schedaLedger);
 }
