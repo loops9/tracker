@@ -1,4 +1,4 @@
-importScripts("estrai.js", "vetrina-core.js", "github.js");
+importScripts("estrai.js", "vetrina-core.js", "github.js", "sync-core.js");
 
 const ALARM_NAME = "controlloGiornaliero";
 // Scraping: più schede insieme, aperte in background (non prendono il focus
@@ -15,11 +15,16 @@ function conFiltroItalia(url) {
   return u.toString();
 }
 
+const ALARM_SYNC = "sincronizzazione";
+const SYNC_OGNI_MINUTI = 15;
+
 chrome.runtime.onInstalled.addListener(() => {
-  // Controllo solo manuale: niente allarme giornaliero. Se una versione
+  // Controllo prezzi solo manuale: niente allarme giornaliero. Se una versione
   // precedente aveva creato l'allarme, lo rimuovo per non farlo scattare.
   chrome.alarms.clear(ALARM_NAME);
+  chrome.alarms.create(ALARM_SYNC, { periodInMinutes: SYNC_OGNI_MINUTI });
   configuraRegolaReferer();
+  sincronizzaSilenziosa("installazione");
 });
 
 // Le regole di sessione spariscono alla chiusura del browser: le reinstallo
@@ -27,6 +32,12 @@ chrome.runtime.onInstalled.addListener(() => {
 // di gestione vetrina.
 chrome.runtime.onStartup.addListener(() => {
   configuraRegolaReferer();
+  chrome.alarms.create(ALARM_SYNC, { periodInMinutes: SYNC_OGNI_MINUTI });
+  sincronizzaSilenziosa("avvio");
+});
+
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === ALARM_SYNC) sincronizzaSilenziosa("periodica");
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -60,9 +71,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.runtime.openOptionsPage();
     return;
   }
+  if (msg?.tipo === "sincronizza") {
+    sincronizzaSilenziosa("pagina aperta").then(() => sendResponse({ ok: true }));
+    return true;
+  }
   if (msg?.tipo === "sincronizzaOra") {
-    sincronizzaGitHub()
-      .then(() => sendResponse({ ok: true }))
+    sincronizza()
+      .then((r) => sendResponse({ ok: true, ...r }))
       .catch((e) => sendResponse({ ok: false, errore: String(e?.message || e) }));
     return true;
   }
@@ -132,7 +147,7 @@ async function controllaTutte() {
 
   await salvaRisultati(risultati);
   await chrome.storage.local.set({ ultimoControllo: Date.now() });
-  await sincronizzaGitHub();
+  await sincronizzaSilenziosa("controllo prezzi");
   return risultati;
 }
 
@@ -146,7 +161,7 @@ async function controllaUna(link) {
 
   const risultato = await elaboraCarta(carta);
   await salvaRisultati([risultato]);
-  await sincronizzaGitHub();
+  await sincronizzaSilenziosa("controllo prezzi");
   return { ok: true, bloccato: risultato.bloccato, prezzo: risultato.prezzo, errore: risultato.errore };
 }
 
@@ -283,57 +298,78 @@ async function leggiQuandoPronta(tabId, filtroInfo) {
   return iniezione.result;
 }
 
-async function sincronizzaGitHub() {
-  const { githubOwner, githubRepo, githubToken, githubPath } = await chrome.storage.local.get([
-    "githubOwner",
-    "githubRepo",
-    "githubToken",
-    "githubPath",
-  ]);
-  if (!githubOwner || !githubRepo || !githubToken) return; // sync non configurata, salta senza errori
+// ------------------------------------------------------ sincronizzazione
+//
+// Stesso data.json per tutti i PC: prima di scrivere lo rileggo da GitHub e
+// lo unisco ai dati locali (sync-core.js), poi scrivo il risultato sia qui
+// sia su GitHub, solo se lo sha non è cambiato nel frattempo; altrimenti
+// rileggo e riunisco. Le sincronizzazioni sono messe in fila, mai due insieme.
 
-  const path = githubPath || "data.json";
-  const { carte = [], storico = [] } = await chrome.storage.local.get(["carte", "storico"]);
-  const contenuto = JSON.stringify({ carte, storico, aggiornatoIl: Date.now() }, null, 2);
-  const contenutoBase64 = btoa(unescape(encodeURIComponent(contenuto))); // supporto UTF-8 (accenti)
+const CHIAVI_SYNC = ["carte", "storico", "vetrina", "eliminati"];
+let codaSync = Promise.resolve();
 
-  const apiUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${path}`;
-  const headersBase = {
-    Authorization: `Bearer ${githubToken}`,
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
+function sincronizza() {
+  const giro = codaSync.then(eseguiSincronizzazione, eseguiSincronizzazione);
+  codaSync = giro.catch(() => {});
+  return giro;
+}
 
-  let sha;
+// Per i giri automatici: l'errore finisce nello storage (lo mostra il
+// popup) invece di interrompere chi l'ha chiesta.
+async function sincronizzaSilenziosa(motivo) {
   try {
-    const rispGet = await fetch(apiUrl, { headers: headersBase });
-    if (rispGet.ok) {
-      sha = (await rispGet.json()).sha;
-    }
+    return await sincronizza();
   } catch (e) {
-    console.error("Cardmarket Tracker - errore lettura data.json da GitHub", e);
-  }
-
-  const corpo = {
-    message: `Aggiornamento prezzi ${new Date().toISOString()}`,
-    content: contenutoBase64,
-    branch: "main",
-  };
-  if (sha) corpo.sha = sha;
-
-  try {
-    const rispPut = await fetch(apiUrl, {
-      method: "PUT",
-      headers: { ...headersBase, "Content-Type": "application/json" },
-      body: JSON.stringify(corpo),
-    });
-    if (!rispPut.ok) {
-      console.error("Cardmarket Tracker - sync GitHub fallita", rispPut.status, await rispPut.text());
-    }
-  } catch (e) {
-    console.error("Cardmarket Tracker - errore invio a GitHub", e);
+    console.error("Cardmarket Tracker - sincronizzazione (" + motivo + ") non riuscita", e);
+    return null;
   }
 }
+
+async function eseguiSincronizzazione() {
+  const cfg = await chrome.storage.local.get(["githubOwner", "githubRepo", "githubToken", "githubPath"]);
+  if (!cfg.githubOwner || !cfg.githubRepo || !cfg.githubToken) return { saltata: true }; // non configurata
+  const path = cfg.githubPath || "data.json";
+  try {
+    for (let tentativo = 0; tentativo < 4; tentativo++) {
+      const remoto = await leggiFileJsonGitHub(cfg, path);
+
+      // Lettura, unione e scrittura locale senza attese di rete in mezzo:
+      // le modifiche fatte nel frattempo dalle pagine non vanno perse.
+      const locale = await chrome.storage.local.get(CHIAVI_SYNC);
+      const unito = unisciStati(locale, remoto.json, Date.now());
+      const improntaUnito = impronta(unito);
+      if (improntaUnito !== impronta(locale)) await chrome.storage.local.set(unito);
+
+      let sha = remoto.sha;
+      let scritto = false;
+      if (!remoto.json || improntaUnito !== impronta(remoto.json)) {
+        const contenuto = JSON.stringify(contenutoDataJson(unito, Date.now()), null, 2);
+        sha = await scriviSeInvariatoGitHub(cfg, path, base64Utf8(contenuto), `Aggiornamento dati ${new Date().toISOString()}`, remoto.sha);
+        if (sha === null) continue; // un altro PC ha scritto nel frattempo: rileggo
+        scritto = true;
+      }
+      await chrome.storage.local.set({ ultimaSync: Date.now(), ultimaSyncImpronta: improntaUnito, ultimaSyncErrore: null });
+      return { scritto, carte: unito.carte.length, vetrina: unito.vetrina.length };
+    }
+    throw new Error("data.json continua a cambiare su GitHub: riprova tra poco.");
+  } catch (e) {
+    await chrome.storage.local.set({ ultimaSyncErrore: String(e?.message || e), ultimaSyncErroreIl: Date.now() });
+    throw e;
+  }
+}
+
+// Dopo ogni modifica locale (carte, vetrina, eliminazioni) sincronizzo entro
+// pochi secondi. Il giro di sync stesso riscrive lo storage: l'impronta
+// evita di ripartire quando i dati sono già quelli sincronizzati.
+let timerSync = null;
+chrome.storage.onChanged.addListener((cambi, area) => {
+  if (area !== "local" || !CHIAVI_SYNC.some((k) => k in cambi)) return;
+  clearTimeout(timerSync);
+  timerSync = setTimeout(async () => {
+    const dati = await chrome.storage.local.get([...CHIAVI_SYNC, "ultimaSyncImpronta"]);
+    if (impronta(dati) !== dati.ultimaSyncImpronta) sincronizzaSilenziosa("modifica locale");
+  }, 3000);
+});
 
 async function salvaRisultati(risultati) {
   const { carte = [], storico = [] } = await chrome.storage.local.get(["carte", "storico"]);
@@ -398,6 +434,7 @@ async function aggiornaVetrina(soloId) {
   vetrinaInAggiornamento = true;
   try {
     await configuraRegolaReferer();
+    await sincronizzaSilenziosa("prima dell'aggiornamento vetrina"); // niente prezzi per carte tolte dall'altro PC
     const { vetrina = [] } = await chrome.storage.local.get("vetrina");
     const daFare = vetrina.filter((c) => (soloId ? c.id === soloId : !c.sold));
     const chiave = (c) => c.url + "\n" + (c.filtroInfo || "");
@@ -445,6 +482,12 @@ async function pubblicaVetrina() {
   await configuraRegolaReferer();
 
   const avvisi = [];
+  // Pubblico la vetrina unita a quella dell'altro PC, non solo quella locale.
+  try {
+    await sincronizza();
+  } catch (e) {
+    avvisi.push("dati dell'altro PC non letti (" + (e?.message || e) + "): pubblicata la vetrina di questo PC");
+  }
   const { vetrina = [] } = await chrome.storage.local.get("vetrina");
   const immagini = {};
 

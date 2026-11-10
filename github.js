@@ -80,6 +80,59 @@ async function leggiShaGitHub(cfg, path) {
   return corpo.sha || null;
 }
 
+// Legge un file JSON del repo con il suo sha: { sha, json }, oppure
+// { sha: null, json: null } se non esiste. Lo sha viene dalla Contents API,
+// il contenuto dal blob con quello sha, così i due sono sempre coerenti
+// (la Contents API non restituisce il contenuto dei file oltre 1 MB).
+async function leggiFileJsonGitHub(cfg, path) {
+  controllaConfigGitHub(cfg);
+  var sha = await leggiShaGitHub(cfg, path);
+  if (!sha) return { sha: null, json: null };
+  var url = "https://api.github.com/repos/" + cfg.githubOwner + "/" + cfg.githubRepo + "/git/blobs/" + sha;
+  var risp;
+  try {
+    risp = await fetch(url, {
+      headers: Object.assign({}, headersGitHub(cfg), { Accept: "application/vnd.github.raw+json" }),
+      cache: "no-store",
+    });
+  } catch (e) {
+    throw ErroreGitHub("GitHub non raggiungibile: controlla la connessione.");
+  }
+  if (!risp.ok) throw ErroreGitHub(messaggioErrore(risp.status, await leggiCorpo(risp), path), risp.status);
+  var testo = await risp.text();
+  try {
+    return { sha: sha, json: JSON.parse(testo) };
+  } catch (e) {
+    throw ErroreGitHub(path + " su GitHub non è un JSON valido.");
+  }
+}
+
+// Scrive un file solo se su GitHub ha ancora lo sha atteso (null = il file
+// non deve esistere). Restituisce il nuovo sha, oppure null se nel frattempo
+// qualcun altro l'ha cambiato: in quel caso bisogna rileggere e riunire.
+async function scriviSeInvariatoGitHub(cfg, path, contenutoBase64, messaggio, shaAtteso) {
+  controllaConfigGitHub(cfg);
+  var corpo = { message: messaggio, content: contenutoBase64, branch: GITHUB_BRANCH };
+  if (shaAtteso) corpo.sha = shaAtteso;
+  var risp;
+  try {
+    risp = await fetch(urlContenuti(cfg, path), {
+      method: "PUT",
+      headers: Object.assign({}, headersGitHub(cfg), { "Content-Type": "application/json" }),
+      body: JSON.stringify(corpo),
+    });
+  } catch (e) {
+    throw ErroreGitHub("GitHub non raggiungibile durante l'invio di " + path + ".");
+  }
+  if (risp.ok) {
+    var c = (await leggiCorpo(risp)).content || {};
+    return c.sha || "?";
+  }
+  var errore = await leggiCorpo(risp);
+  if (risp.status === 409 || (risp.status === 422 && /sha/i.test(errore.message || ""))) return null;
+  throw ErroreGitHub(messaggioErrore(risp.status, errore, path), risp.status);
+}
+
 // Crea o sostituisce un file. Se lo sha non corrisponde più (409, oppure
 // 422 quando il file è comparso tra GET e PUT) rilegge lo sha e riprova una
 // volta: succede quando due commit arrivano a ridosso.
@@ -142,6 +195,8 @@ if (typeof module !== "undefined") {
     controllaConfigGitHub: controllaConfigGitHub,
     verificaAccessoGitHub: verificaAccessoGitHub,
     leggiShaGitHub: leggiShaGitHub,
+    leggiFileJsonGitHub: leggiFileJsonGitHub,
+    scriviSeInvariatoGitHub: scriviSeInvariatoGitHub,
     scriviFileGitHub: scriviFileGitHub,
     elencaCartellaGitHub: elencaCartellaGitHub,
     eliminaFileGitHub: eliminaFileGitHub,

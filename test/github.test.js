@@ -61,3 +61,33 @@ test("422 per sha mancante (file creato nel frattempo) conta come conflitto", as
 test("URL della vetrina su Pages", () => {
   assert.equal(gh.urlPagesVetrina({ githubOwner: "Loops9", githubRepo: "tracker" }), "https://loops9.github.io/tracker/vetrina/");
 });
+
+test("lettura file JSON: sha dalla Contents API, contenuto dal blob con lo stesso sha", async () => {
+  const chiamate = [];
+  global.fetch = async (url, opz = {}) => {
+    chiamate.push({ url, accept: opz.headers?.Accept });
+    if (url.includes("/contents/")) return { ok: true, status: 200, json: async () => ({ sha: "abc" }) };
+    return { ok: true, status: 200, text: async () => '{"carte":[]}' };
+  };
+  const r = await gh.leggiFileJsonGitHub(cfg, "data.json");
+  assert.deepEqual(r, { sha: "abc", json: { carte: [] } });
+  assert.equal(chiamate[1].url, "https://api.github.com/repos/loops9/tracker/git/blobs/abc");
+  assert.equal(chiamate[1].accept, "application/vnd.github.raw+json");
+});
+
+test("lettura file JSON che non esiste", async () => {
+  finto([[404, {}]]);
+  assert.deepEqual(await gh.leggiFileJsonGitHub(cfg, "data.json"), { sha: null, json: null });
+});
+
+test("scrittura condizionata: conflitto di sha restituisce null invece di sovrascrivere", async () => {
+  const c = finto([[409, { message: "data.json does not match abc" }]]);
+  assert.equal(await gh.scriviSeInvariatoGitHub(cfg, "data.json", "e30=", "m", "abc"), null);
+  assert.equal(c.length, 1);
+  assert.equal(c[0].corpo.sha, "abc");
+});
+
+test("scrittura condizionata riuscita restituisce il nuovo sha", async () => {
+  finto([[200, { content: { sha: "def" } }]]);
+  assert.equal(await gh.scriviSeInvariatoGitHub(cfg, "data.json", "e30=", "m", "abc"), "def");
+});
